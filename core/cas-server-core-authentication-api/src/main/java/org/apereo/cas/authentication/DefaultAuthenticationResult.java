@@ -1,8 +1,11 @@
 package org.apereo.cas.authentication;
 
-import org.apache.commons.lang3.builder.ToStringBuilder;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.authentication.principal.Service;
-
 
 /**
  * The {@link DefaultAuthenticationResult} represents a concrete implementation of {@link AuthenticationResult}.
@@ -12,60 +15,16 @@ import org.apereo.cas.authentication.principal.Service;
  * @author Misagh Moayyed
  * @since 4.2
  */
+@Slf4j
+@ToString
+@Setter
+@Getter
+@RequiredArgsConstructor
 public class DefaultAuthenticationResult implements AuthenticationResult {
-
     private static final long serialVersionUID = 8454900425245262824L;
 
     private boolean credentialProvided;
 
     private final Authentication authentication;
-
     private final Service service;
-
-    /**
-     * Instantiates a new Default authentication result.
-     *
-     * @param authentication the authentication
-     * @param service        the service
-     */
-    public DefaultAuthenticationResult(final Authentication authentication, final Service service) {
-        this.authentication = authentication;
-        this.service = service;
-    }
-
-    /**
-     * Instantiates a new Default authentication result.
-     *
-     * @param authentication the authentication
-     */
-    public DefaultAuthenticationResult(final Authentication authentication) {
-        this(authentication, null);
-    }
-
-    @Override
-    public Authentication getAuthentication() {
-        return this.authentication;
-    }
-
-    @Override
-    public Service getService() {
-        return this.service;
-    }
-
-    @Override
-    public boolean isCredentialProvided() {
-        return this.credentialProvided;
-    }
-
-    public void setCredentialProvided(final boolean credentialProvided) {
-        this.credentialProvided = credentialProvided;
-    }
-
-    @Override
-    public String toString() {
-        return new ToStringBuilder(this)
-                .append("authentication", this.authentication)
-                .append("credentialProvided", this.credentialProvided)
-                .toString();
-    }
 }

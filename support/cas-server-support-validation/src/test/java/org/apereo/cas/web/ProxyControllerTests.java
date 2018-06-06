@@ -1,5 +1,6 @@
 package org.apereo.cas.web;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.AbstractCentralAuthenticationServiceTests;
 import org.apereo.cas.CasProtocolConstants;
 import org.apereo.cas.authentication.CoreAuthenticationTestUtils;
@@ -31,6 +32,7 @@ import static org.junit.Assert.*;
 @Import({ProxyControllerTests.ProxyTestConfiguration.class,
     CasProtocolViewsConfiguration.class,
     CasValidationConfiguration.class})
+@Slf4j
 public class ProxyControllerTests extends AbstractCentralAuthenticationServiceTests {
 
     @Autowired
@@ -78,7 +80,7 @@ public class ProxyControllerTests extends AbstractCentralAuthenticationServiceTe
         getTicketRegistry().addTicket(ticket);
         final MockHttpServletRequest request = new MockHttpServletRequest();
         request.addParameter(CasProtocolConstants.PARAMETER_PROXY_GRANTING_TICKET, ticket.getId());
-        request.addParameter("targetService", "service");
+        request.addParameter(CasProtocolConstants.PARAMETER_TARGET_SERVICE, "service");
 
         final Map<String, Object> map = this.proxyController.handleRequestInternal(request, new MockHttpServletResponse()).getModel();
         assertFalse(map.containsKey(CasProtocolConstants.PARAMETER_TICKET));

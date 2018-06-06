@@ -1,11 +1,13 @@
 package org.apereo.cas.authentication;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.authentication.principal.Service;
 import org.springframework.core.OrderComparator;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -14,12 +16,10 @@ import java.util.stream.Collectors;
  * @author Misagh Moayyed
  * @since 5.1.0
  */
+@Slf4j
+@RequiredArgsConstructor
 public class DefaultAuthenticationServiceSelectionPlan implements AuthenticationServiceSelectionPlan {
     private final List<AuthenticationServiceSelectionStrategy> strategies;
-
-    public DefaultAuthenticationServiceSelectionPlan() {
-        this.strategies = new ArrayList<>();
-    }
 
     public DefaultAuthenticationServiceSelectionPlan(final AuthenticationServiceSelectionStrategy... strategies) {
         this.strategies = Arrays.stream(strategies).collect(Collectors.toList());
@@ -34,10 +34,27 @@ public class DefaultAuthenticationServiceSelectionPlan implements Authentication
 
     @Override
     public Service resolveService(final Service service) {
-        return this.strategies.stream()
-                .filter(s -> s.supports(service))
-                .findFirst()
-                .get()
-                .resolveServiceFrom(service);
+        final Optional<AuthenticationServiceSelectionStrategy> strategy = this.strategies
+            .stream()
+            .filter(s -> s.supports(service))
+            .findFirst();
+
+        if (strategy.isPresent()) {
+            final AuthenticationServiceSelectionStrategy result = strategy.get();
+            return result.resolveServiceFrom(service);
+        }
+        return null;
+    }
+
+    @Override
+    public <T extends Service> T resolveService(final Service service, final Class<T> clazz) {
+        final Service result = resolveService(service);
+        if (result == null) {
+            return null;
+        }
+        if (!clazz.isAssignableFrom(result.getClass())) {
+            throw new ClassCastException("Object [" + result + " is of type " + result.getClass() + " when we were expecting " + clazz);
+        }
+        return (T) result;
     }
 }

@@ -5,13 +5,17 @@ title: CAS Common Properties Overview
 
 # CAS Common Properties
 
-This document describes a number of suggestions and configuration options that apply to and are common amongst a selection of CAS modules and features. To see the full list of CAS properties, please [review this guide](Configuration-Properties.html).
+This document describes a number of suggestions and configuration options that apply to and are common amongst a selection of CAS modules and features. 
+To see the full list of CAS properties, please [review this guide](Configuration-Properties.html).
 
 ## Naming Convention
 
-- Settings and properties that are controlled by the CAS platform directly always begin with the prefix `cas`. All other settings are controlled and provided to CAS via other underlying frameworks and may have their own schemas and syntax. **BE CAREFUL** with the distinction.
+- Settings and properties that are controlled by the CAS platform directly always begin with the prefix `cas`. All other settings are controlled 
+and provided to CAS via other underlying frameworks and may have their own schemas and syntax. **BE CAREFUL** with the distinction.
 
-- Unrecognized properties are generally ignored by CAS and/or frameworks upon which CAS depends. This means if you somehow misspell a property definition or fail to adhere to the dot-notation syntax and such, your setting is entirely ignored by CAS and likely the feature it controls will never be activated in the way you intend.
+- Unrecognized properties are rejected by CAS and/or frameworks upon which CAS depends. 
+This means if you somehow misspell a property definition or fail to adhere to the dot-notation syntax and such, your setting 
+is entirely refused by CAS and likely the feature it controls will never be activated in the way you intend.
 
 ## Indexed Settings
 
@@ -48,14 +52,9 @@ in each case to learn the exact unit of measure.
 
 ## Authentication Throttling
 
-Certain functionality in CAS, such as [OAuth](OAuth-OpenId-Authentication.html) or [REST API](../protocol/REST-Protocol.html), allow you to throttle requests to specific endpoints in addition to the more generic authentication throttling functionality applied during the login flow and authentication attempts. To activate throttling functionality for a support module, the following strategies are supported in CAS setting.
-
-The following parameters are passed:
-
-| Value            | Description
-|------------------|-------------------------------------------
-| `neverThrottle`  | Disable throttling for the feature.
-| `authenticationThrottle` | Enable throttling for the feature.
+Certain functionality in CAS, such as [OAuth](OAuth-OpenId-Authentication.html) 
+or [REST API](../protocol/REST-Protocol.html), allow you to throttle requests to specific endpoints in addition to the more 
+generic authentication throttling functionality applied during the login flow and authentication attempts.
 
 To fully deliver this functionality, it is expected that [authentication throttling](Configuring-Authentication-Throttling.html) is turned on.
 
@@ -197,6 +196,19 @@ The following options related to principal transformation support in CAS apply e
 # ${configurationKey}.principalTransformation.prefix=
 ```
 
+## Cookie Properties
+
+The following common properties configure cookie generator support in CAS.
+
+```properties
+# ${configurationKey}.name=
+# ${configurationKey}.domain=
+# ${configurationKey}.path=
+# ${configurationKey}.httpOnly=true
+# ${configurationKey}.secure=true
+# ${configurationKey}.maxAge=-1
+```
+
 ## Hibernate & JDBC
 
 Control global properties that are relevant to Hibernate,
@@ -229,7 +241,6 @@ The following options related to JPA/JDBC support in CAS apply equally to a numb
 # ${configurationKey}.defaultCatalog=
 # ${configurationKey}.defaultSchema=
 # ${configurationKey}.ddlAuto=create-drop
-# ${configurationKey}.maxAgeDays=180
 
 # ${configurationKey}.autocommit=false
 # ${configurationKey}.idleTimeout=5000
@@ -475,9 +486,49 @@ More advanced Hazelcast configuration settings are listed below, given the compo
 # ${configurationKey}.cluster.discovery.aws.connectionTimeoutSeconds=5
 ```
 
+### Apache jclouds Discovery
+
+```properties
+# ${configurationKey}.cluster.discovery.enabled=true
+
+# ${configurationKey}.cluster.discovery.jclouds.provider=
+# ${configurationKey}.cluster.discovery.jclouds.identity=
+# ${configurationKey}.cluster.discovery.jclouds.credential=
+# ${configurationKey}.cluster.discovery.jclouds.endpoint=
+# ${configurationKey}.cluster.discovery.jclouds.zones=
+# ${configurationKey}.cluster.discovery.jclouds.regions=
+# ${configurationKey}.cluster.discovery.jclouds.tagKeys=
+# ${configurationKey}.cluster.discovery.jclouds.tagValues=
+# ${configurationKey}.cluster.discovery.jclouds.group=
+# ${configurationKey}.cluster.discovery.jclouds.port=-1
+# ${configurationKey}.cluster.discovery.jclouds.roleName=
+# ${configurationKey}.cluster.discovery.jclouds.credentialPath=
+```
+
+### Microsoft Azure Discovery
+
+```properties
+# ${configurationKey}.cluster.discovery.enabled=true
+
+# ${configurationKey}.cluster.discovery.azure.subscriptionId=
+# ${configurationKey}.cluster.discovery.azure.clientId=
+# ${configurationKey}.cluster.discovery.azure.clientSecret=
+# ${configurationKey}.cluster.discovery.azure.tenantId=
+# ${configurationKey}.cluster.discovery.azure.clusterId=
+# ${configurationKey}.cluster.discovery.azure.groupName=
+```
+
 ## RADIUS Configuration
 
-The following options related to RADIUS support in CAS apply equally to a number of CAS components (authentication, etc) given the component's *configuration key*:
+The following options related to RADIUS support in CAS apply equally to a number of CAS components (authentication, etc) 
+given the component's *configuration key*.
+
+`server` parameters defines identification values of authenticated service (CAS server), primarily `server.protocol`
+ for communication to RADIUS server identified by `client`.
+
+`client` parameters defines values for connecting RADIUS server. 
+Parameter `client.inetAddress` has possibility to contain more addresses separated by comma to define failover servers 
+when `failoverOnException` is set.   
 
 ```properties
 # ${configurationKey}.server.nasPortId=-1
@@ -532,20 +583,11 @@ The following options related to MongoDb support in CAS apply equally to a numbe
 The following options related to DynamoDb support in CAS apply equally to a number of CAS components (ticket registries, etc) given the component's *configuration key*:
 
 ```properties
-# Path to an external properties file that contains 'accessKey' and 'secretKey' fields.
-# ${configurationKey}.dynamoDb.credentialsPropertiesFile=file:/path/to/file.properties
-
-# Alternatively, you may directly provide credentials to CAS
-# ${configurationKey}.dynamoDb.credentialAccessKey=
-# ${configurationKey}.dynamoDb.credentialSecretKey=
-
-# ${configurationKey}.dynamoDb.endpoint=http://localhost:8000
-# ${configurationKey}.dynamoDb.region=US_WEST_2|US_EAST_2|EU_WEST_2|<REGION-NAME>
-# ${configurationKey}.dynamoDb.regionOverride=
-# ${configurationKey}.dynamoDb.serviceNameIntern=
-
 # ${configurationKey}.dynamoDb.dropTablesOnStartup=false
+# ${configurationKey}.dynamoDb.preventTableCreationOnStartup=false
 # ${configurationKey}.dynamoDb.timeOffset=0
+
+# ${configurationKey}.dynamoDb.localInstance=false
 
 # ${configurationKey}.dynamoDb.readCapacity=10
 # ${configurationKey}.dynamoDb.writeCapacity=10
@@ -562,6 +604,8 @@ The following options related to DynamoDb support in CAS apply equally to a numb
 # ${configurationKey}.dynamoDb.localAddress=
 # ${configurationKey}.dynamoDb.maxConnections=10
 ```
+
+AWS settings for this feature are available [here](#amazon-integration-settings).
 
 ## RESTful Integrations
 
@@ -622,11 +666,12 @@ Note that the default value for Hibernate's DDL setting is `create-drop` which m
 | `update`             | Update the schema.
 | `create`             | Create the schema, destroying previous data.
 | `create-drop`        | Drop the schema at the end of the session.
+| `none`               | Do nothing.
 
 Note that during a version migration where any schema has changed `create-drop` will result
 in the loss of all data as soon as CAS is started. For transient data like tickets this is probably
 not an issue, but in cases like the audit table important data could be lost. Using `update`, while safe
-for data, is confirmed to result in invalid database state. `validate` or the undocumented `none` settings
+for data, is confirmed to result in invalid database state. `validate` or `none` settings
 are likely the only safe options for production use.
 
 For more information on configuration of transaction levels and propagation behaviors,
@@ -634,7 +679,10 @@ please review [this guide](http://docs.spring.io/spring-framework/docs/current/j
 
 ## SAML2 Service Provider Integrations
 
-The settings defined for each service provider simply attempt to automate the creation of a [SAML service definition](Configuring-SAML2-Authentication.html#saml-services) and nothing more. If you find the applicable settings lack in certain areas, it is best to fall back onto the native configuration strategy for registering SAML service providers with CAS which would depend on your service registry of choice.
+The settings defined for each service provider simply attempt to automate the creation of 
+a [SAML service definition](Configuring-SAML2-Authentication.html#saml-services) and nothing more. If you find the 
+applicable settings lack in certain areas, it is best to fall back onto the native configuration strategy for registering 
+SAML service providers with CAS which would depend on your service registry of choice.
 
 Each SAML service provider supports the following settings:
 
@@ -650,7 +698,6 @@ Each SAML service provider supports the following settings:
 | `entityIds`           | List of entity ids allowed for this service provider.
 | `signResponses`       | Indicate whether responses should be signed. Default is `true`.
 | `signAssertions`      | Indicate whether assertions should be signed. Default is `false`.
-
 
 The only required setting that would activate the automatic configuration for a service provider is the presence and definition of metadata. All other settings are optional. 
 
@@ -695,14 +742,35 @@ In multifactor authentication bypass is determined via REST, RESTful settings ar
 
 ## Couchbase Integration Settings
 
-The following  options are shared and apply when CAS is configured to integrate with Couchbase (i.e ticket registry, etc), given the provider's *configuration key*:
+The following options are shared and apply when CAS is configured to integrate with Couchbase (i.e ticket registry, etc), given the provider's *configuration key*:
 
 ```properties
 # ${configurationKey}.nodeSet=localhost:8091
 # ${configurationKey}.password=
 # ${configurationKey}.queryEnabled=true
 # ${configurationKey}.bucket=default
-# ${configurationKey}.timeout=10
+# ${configurationKey}.timeout=PT30S
+```
+
+## Amazon Integration Settings
+
+The following options are shared and apply when CAS is configured to integrate with various 
+Amazon Web Service features, given the provider's *configuration key*:
+
+```properties
+# Path to an external properties file that contains 'accessKey' and 'secretKey' fields.
+# ${configurationKey}.credentialsPropertiesFile=file:/path/to/file.properties
+
+# Alternatively, you may directly provide credentials to CAS
+# ${configurationKey}.credentialAccessKey=
+# ${configurationKey}.credentialSecretKey=
+
+# ${configurationKey}.endpoint=http://localhost:8000
+# ${configurationKey}.region=US_WEST_2|US_EAST_2|EU_WEST_2|<REGION-NAME>
+# ${configurationKey}.regionOverride=
+# ${configurationKey}.serviceNameIntern=
+
+# ${configurationKey}.localAddress=
 ```
 
 ## Memcached Integration Settings
@@ -732,16 +800,121 @@ The following  options are shared and apply when CAS is configured to integrate 
 # ${configurationKey}.memcached.kryoRegistrationRequired=false
 ```
 
-## Delegated Authentication Settings
+## Password Policy Settings
 
-The following  options are shared and apply when CAS is configured to delegate authentication to an external provider such as Yahoo, given the provider's *configuration key*:
+The following  options are shared and apply when CAS is configured to integrate with account sources and authentication strategies that support password policy enforcement and detection, given the provider's *configuration key*. Note that certain setting may only be applicable if the underlying account source is LDAP and are only taken into account if the authentication strategy configured in CAS is able to honor and recognize them: 
 
 ```properties
-#${configurationKey}.id=
-#${configurationKey}.secret=
-# (Optional) Friendly name, e.g. "This Organization" or "That Organization"
-#${configurationKey}.clientName=My Provider
+# ${configurationKey}.type=GENERIC|AD|FreeIPA|EDirectory
+
+# ${configurationKey}.enabled=true
+# ${configurationKey}.policyAttributes.accountLocked=javax.security.auth.login.AccountLockedException
+# ${configurationKey}.loginFailures=5
+# ${configurationKey}.warningAttributeValue=
+# ${configurationKey}.warningAttributeName=
+# ${configurationKey}.displayWarningOnMatch=true
+# ${configurationKey}.warnAll=true
+# ${configurationKey}.warningDays=30
+# ${configurationKey}.accountStateHandlingEnabled=true
+
+# An implementation of `org.ldaptive.auth.AuthenticationResponseHandler`
+# ${configurationKey}.customPolicyClass=com.example.MyAuthenticationResponseHandler
+
+# ${configurationKey}.strategy=DEFAULT|GROOVY|REJECT_RESULT_CODE
+# ${configurationKey}.groovy.location=file:/etc/cas/config/password-policy.groovy
 ```
+
+#### Password Policy Strategies
+
+Password policy strategy types are outlined below. The strategy evaluates the authentication response received from LDAP, etc and is allowed to review it upfront in order to further examine whether account state, messages and warnings is eligible for further investigation.
+
+| Option        | Description
+|---------------|-----------------------------------------------------------------------------
+| `DEFAULT`     | Accepts the authentication response as is, and processes account state, if any.
+| `GROOVY`      | Examine the authentication response as part of a Groovy script dynamically. The responsibility of handling account state changes and warnings is entirely delegated to the script.
+| `REJECT_RESULT_CODE`  | An extension of the `DEFAULT` where account state is processed only if the result code of the authentication response is not blacklisted in the configuration. By default `INVALID_CREDENTIALS(49)` prevents CAS from handling account states.
+
+If the password policy strategy is to be handed off to a Groovy script, the outline of the script may be as follows:
+
+```groovy
+import java.util.*
+import org.ldaptive.auth.*
+import org.apereo.cas.*
+import org.apereo.cas.authentication.*
+import org.apereo.cas.authentication.support.*
+
+def List<MessageDescriptor> run(final Object... args) {
+    def response = args[0]
+    def configuration = args[1];
+    def logger = args[2]
+
+    logger.info("Handling password policy [{}] via ${configuration.getAccountStateHandler()}", response)
+
+    def accountStateHandler = configuration.getAccountStateHandler()
+    return accountStateHandler.handle(response, configuration)
+}
+```
+
+The parameters passed are as follows:
+
+| Parameter             | Description
+|-----------------------|-----------------------------------------------------------------------------------
+| `response`            | The LDAP authentication response of type `org.ldaptive.auth.AuthenticationResponse`
+| `configuration`       | The LDAP password policy configuration carrying the account state handler defined.
+| `logger`              | The object responsible for issuing log messages such as `logger.info(...)`.
+
+## Email Notifications
+
+To learn more about this topic, [please review this guide](SMS-Email-Configuration.html).
+
+The following options are shared and apply when CAS is configured to send email notifications, given the provider's *configuration key*:
+
+```properties
+# ${configurationKey}.mail.from=
+# ${configurationKey}.mail.text=
+# ${configurationKey}.mail.subject=
+# ${configurationKey}.mail.cc=
+# ${configurationKey}.mail.bcc=
+# ${configurationKey}.mail.attributeName=mail
+```
+
+The following settings may also need to be defined to describe the mail server settings:
+
+```properties
+# spring.mail.host=
+# spring.mail.port=
+# spring.mail.username=
+# spring.mail.password=
+# spring.mail.testConnection=true
+# spring.mail.properties.mail.smtp.auth=true
+# spring.mail.properties.mail.smtp.starttls.enable=true
+```
+
+## SMS Notifications
+ 
+The following options are shared and apply when CAS is configured to send SMS notifications, given the provider's *configuration key*:
+ 
+```properties
+# ${configurationKey}.sms.from=
+# ${configurationKey}.sms.text=
+# ${configurationKey}.sms.attributeName=phone
+```
+
+You will also need to ensure a provider is defined that is able to send SMS messages. To learn more about this 
+topic, [please review this guide](SMS-Messaging-Configuration.html).
+ 
+## Delegated Authentication Settings
+
+The following  options are shared and apply when CAS is configured to delegate authentication 
+to an external provider such as Yahoo, given the provider's *configuration key*:
+
+```properties
+# ${configurationKey}.id=
+# ${configurationKey}.secret=
+# ${configurationKey}.clientName=My Provider
+# ${configurationKey}.autoRedirect=false
+```
+
 
 ## LDAP Connection Settings
 
@@ -802,7 +975,7 @@ The following options can be used to passivate objects when they are checked bac
 
 You may receive unexpected LDAP failures, when CAS is configured to authenticate using `DIRECT` or `AUTHENTICATED` types and LDAP is locked down to not allow anonymous binds/searches. Every second attempt with a given LDAP connection from the pool would fail if it was on the same connection as a failed login attempt, and the regular connection validator would similarly fail. When a connection is returned back to a pool, it still may contain the principal and credentials from the previous attempt. Before the next bind attempt using that connection, the validator tries to validate the connection again but fails because it's no longer trying with the configured bind credentials but with whatever user DN was used in the previous step. Given the validation failure, the connection is closed and CAS would deny access by default. Passivators attempt to reconnect to LDAP with the configured bind credentials, effectively resetting the connection to what it should be after each bind request.
 
-Furthermore if you are seeing errors in the logs that resemble a *<Operation exception encountered, reopening connection>* type of message, this usually is an indication that the connection pool's validation timeout established and created by CAS is greater than the timeout configured in the LDAP server, or more likely, in the load balancer in front of the LDAP servers. You can adjust the LDAP server session's timeout for connections, or you can teach CAS to use a validatity period that is equal or less than the LDAP server session's timeout.
+Furthermore if you are seeing errors in the logs that resemble a *<Operation exception encountered, reopening connection>* type of message, this usually is an indication that the connection pool's validation timeout established and created by CAS is greater than the timeout configured in the LDAP server, or more likely, in the load balancer in front of the LDAP servers. You can adjust the LDAP server session's timeout for connections, or you can teach CAS to use a validity period that is equal or less than the LDAP server session's timeout.
 
 ### Connection Strategies
 
@@ -873,6 +1046,7 @@ In addition to common LDAP connection settings above, there are cases where CAS 
 
 # ${configurationKey}.baseDn=dc=example,dc=org
 # ${configurationKey}.subtreeSearch=true
+# ${configurationKey}.searchFilter=cn={user}
 
 # ${configurationKey}.enhanceWithEntryResolver=true
 # ${configurationKey}.derefAliases=NEVER|SEARCHING|FINDING|ALWAYS

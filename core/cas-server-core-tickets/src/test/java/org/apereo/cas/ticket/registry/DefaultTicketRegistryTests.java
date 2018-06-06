@@ -1,14 +1,15 @@
 package org.apereo.cas.ticket.registry;
 
-import org.apereo.cas.util.cipher.NoOpCipherExecutor;
+import lombok.extern.slf4j.Slf4j;
+import org.apereo.cas.CipherExecutor;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import static org.junit.Assert.*;
-
 import java.util.Arrays;
 import java.util.Collection;
+
+import static org.junit.Assert.*;
 
 /**
  * Test case to test the DefaultTicketRegistry based on test cases to test all
@@ -18,7 +19,8 @@ import java.util.Collection;
  * @since 3.0.0
  */
 @RunWith(Parameterized.class)
-public class DefaultTicketRegistryTests extends AbstractTicketRegistryTests {
+@Slf4j
+public class DefaultTicketRegistryTests extends BaseSpringRunnableTicketRegistryTests {
 
     public DefaultTicketRegistryTests(final boolean useEncryption) {
         super(useEncryption);
@@ -36,6 +38,6 @@ public class DefaultTicketRegistryTests extends AbstractTicketRegistryTests {
 
     @Test
     public void verifyOtherConstructor() {
-        assertNotNull(new DefaultTicketRegistry(10, 10, 5, NoOpCipherExecutor.getInstance()));
+        assertNotNull(new DefaultTicketRegistry(10, 10, 5, CipherExecutor.noOp()));
     }
 }

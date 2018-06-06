@@ -1,5 +1,7 @@
 description = "Apereo CAS Web Application Authentication Throttling"
 dependencies {
+    api project(":api:cas-server-core-api-throttle")
+    
     implementation project(":core:cas-server-core-web-api")
     implementation project(":core:cas-server-core-util")
     implementation project(":core:cas-server-core-configuration-api")
@@ -10,6 +12,7 @@ dependencies {
     testImplementation project(":core:cas-server-core-configuration")
     testImplementation project(":core:cas-server-core-authentication-api")
     testImplementation project(":core:cas-server-core-audit")
+    testImplementation project(":core:cas-server-core-audit-api")
     testImplementation project(":core:cas-server-core")
     testImplementation project(":core:cas-server-core-logout-api")
     testImplementation project(":core:cas-server-core-monitor")

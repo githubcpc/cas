@@ -1,15 +1,19 @@
 package org.apereo.cas.web.support;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apereo.cas.authentication.Authentication;
 import org.apereo.cas.authentication.RememberMeCredential;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apereo.cas.util.CollectionUtils;
 import org.springframework.web.util.CookieGenerator;
 import org.springframework.webflow.execution.RequestContext;
-
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import lombok.Setter;
+
+import java.util.Map;
 
 /**
  * Extends CookieGenerator to allow you to retrieve a value from a request.
@@ -20,8 +24,9 @@ import javax.servlet.http.HttpServletResponse;
  * @author Misagh Moayyed
  * @since 3.1
  */
+@Slf4j
+@Setter
 public class CookieRetrievingCookieGenerator extends CookieGenerator {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CookieRetrievingCookieGenerator.class);
 
     private static final int DEFAULT_REMEMBER_ME_MAX_AGE = 7889231;
 
@@ -36,41 +41,22 @@ public class CookieRetrievingCookieGenerator extends CookieGenerator {
      **/
     private final CookieValueManager casCookieValueManager;
 
-    /**
-     * Instantiates a new cookie retrieving cookie generator
-     * with a default cipher of {@link NoOpCookieValueManager}.
-     *
-     * @param name     cookie name
-     * @param path     cookie path
-     * @param maxAge   cookie max age
-     * @param secure   if cookie is only for HTTPS
-     * @param domain   cookie domain
-     * @param httpOnly the http only
-     */
     public CookieRetrievingCookieGenerator(final String name, final String path, final int maxAge,
-                                           final boolean secure, final String domain,
-                                           final boolean httpOnly) {
-        this(name, path, maxAge, secure, domain, new NoOpCookieValueManager(), DEFAULT_REMEMBER_ME_MAX_AGE, httpOnly);
+                                           final boolean secure, final String domain, final boolean httpOnly) {
+        this(name, path, maxAge, secure, domain, new NoOpCookieValueManager(),
+            DEFAULT_REMEMBER_ME_MAX_AGE, httpOnly);
     }
 
-    /**
-     * Instantiates a new Cookie retrieving cookie generator.
-     *
-     * @param name                  cookie name
-     * @param path                  cookie path
-     * @param maxAge                cookie max age
-     * @param secure                if cookie is only for HTTPS
-     * @param domain                cookie domain
-     * @param casCookieValueManager the cookie manager
-     * @param rememberMeMaxAge      cookie rememberMe max age
-     * @param httpOnly              the http only
-     */
     public CookieRetrievingCookieGenerator(final String name, final String path, final int maxAge,
-                                           final boolean secure, final String domain,
-                                           final CookieValueManager casCookieValueManager,
-                                           final int rememberMeMaxAge,
-                                           final boolean httpOnly) {
-        super();
+                                           final boolean secure, final String domain, final boolean httpOnly,
+                                           final CookieValueManager cookieValueManager) {
+        this(name, path, maxAge, secure, domain, cookieValueManager,
+            DEFAULT_REMEMBER_ME_MAX_AGE, httpOnly);
+    }
+
+    public CookieRetrievingCookieGenerator(final String name, final String path, final int maxAge, final boolean secure,
+                                           final String domain, final CookieValueManager casCookieValueManager,
+                                           final int rememberMeMaxAge, final boolean httpOnly) {
         super.setCookieName(name);
         super.setCookiePath(path);
         this.setCookieDomain(domain);
@@ -91,9 +77,7 @@ public class CookieRetrievingCookieGenerator extends CookieGenerator {
     public void addCookie(final RequestContext requestContext, final String cookieValue) {
         final HttpServletRequest request = WebUtils.getHttpServletRequestFromExternalWebflowContext(requestContext);
         final HttpServletResponse response = WebUtils.getHttpServletResponseFromExternalWebflowContext(requestContext);
-
         final String theCookieValue = this.casCookieValueManager.buildCookieValue(cookieValue, request);
-
         if (isRememberMeAuthentication(requestContext)) {
             LOGGER.debug("Creating cookie [{}] for remember-me authentication with max-age [{}]", getCookieName(), this.rememberMeMaxAge);
             final Cookie cookie = createCookie(theCookieValue);
@@ -108,10 +92,39 @@ public class CookieRetrievingCookieGenerator extends CookieGenerator {
         }
     }
 
-    private boolean isRememberMeAuthentication(final RequestContext requestContext) {
+    /**
+     * Add cookie.
+     *
+     * @param request     the request
+     * @param response    the response
+     * @param cookieValue the cookie value
+     */
+    public void addCookie(final HttpServletRequest request, final HttpServletResponse response, final String cookieValue) {
+        final String theCookieValue = this.casCookieValueManager.buildCookieValue(cookieValue, request);
+        LOGGER.debug("Creating cookie [{}]", getCookieName());
+        super.addCookie(response, theCookieValue);
+    }
+
+    private Boolean isRememberMeAuthentication(final RequestContext requestContext) {
         final HttpServletRequest request = WebUtils.getHttpServletRequestFromExternalWebflowContext(requestContext);
         final String value = request.getParameter(RememberMeCredential.REQUEST_PARAMETER_REMEMBER_ME);
-        return StringUtils.isNotBlank(value) || WebUtils.isRememberMeAuthenticationEnabled(requestContext);
+        LOGGER.debug("Locating request parameter [{}] with value [{}]", RememberMeCredential.REQUEST_PARAMETER_REMEMBER_ME, value);
+        boolean isRememberMe = StringUtils.isNotBlank(value) && WebUtils.isRememberMeAuthenticationEnabled(requestContext);
+        if (!isRememberMe) {
+            LOGGER.debug("Request does not indicate a remember-me authentication event. Locating authentication object from the request context...");
+            final Authentication auth = WebUtils.getAuthentication(requestContext);
+            if (auth != null) {
+                final Map<String, Object> attributes = auth.getAttributes();
+                LOGGER.debug("Located authentication attributes [{}]", attributes);
+                if (attributes.containsKey(RememberMeCredential.AUTHENTICATION_ATTRIBUTE_REMEMBER_ME)) {
+                    final boolean rememberMeValue = (boolean) attributes.getOrDefault(RememberMeCredential.AUTHENTICATION_ATTRIBUTE_REMEMBER_ME, Boolean.FALSE);
+                    LOGGER.debug("Located remember-me authentication attribute [{}]", rememberMeValue);
+                    isRememberMe = CollectionUtils.wrapSet(rememberMeValue).contains(Boolean.TRUE);
+                }
+            }
+        }
+        LOGGER.debug("Is this request from a remember-me authentication event? [{}]", BooleanUtils.toStringYesNo(isRememberMe));
+        return isRememberMe;
     }
 
     /**

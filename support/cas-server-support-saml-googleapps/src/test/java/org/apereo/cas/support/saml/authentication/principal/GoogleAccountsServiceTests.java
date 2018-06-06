@@ -1,6 +1,7 @@
 package org.apereo.cas.support.saml.authentication.principal;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apereo.cas.authentication.CoreAuthenticationTestUtils;
 import org.apereo.cas.authentication.principal.DefaultResponse;
@@ -44,6 +45,7 @@ import static org.mockito.Mockito.*;
 @Import(SamlGoogleAppsConfiguration.class)
 @TestPropertySource(locations = "classpath:/gapps.properties")
 @ContextConfiguration(initializers = EnvironmentConversionServiceInitializer.class)
+@Slf4j
 public class GoogleAccountsServiceTests extends AbstractOpenSamlTests {
 
     private static final File FILE = new File(FileUtils.getTempDirectoryPath(), "service.json");
@@ -59,7 +61,7 @@ public class GoogleAccountsServiceTests extends AbstractOpenSamlTests {
 
     private GoogleAccountsService googleAccountsService;
 
-    public GoogleAccountsService getGoogleAccountsService() throws Exception {
+    public GoogleAccountsService getGoogleAccountsService() {
         final MockHttpServletRequest request = new MockHttpServletRequest();
 
         final String samlRequest = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
@@ -80,7 +82,7 @@ public class GoogleAccountsServiceTests extends AbstractOpenSamlTests {
     }
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         this.googleAccountsService = getGoogleAccountsService();
     }
 

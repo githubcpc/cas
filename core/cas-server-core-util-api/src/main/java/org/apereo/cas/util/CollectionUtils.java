@@ -1,16 +1,19 @@
 package org.apereo.cas.util;
 
 import com.google.common.collect.Multimap;
+import lombok.SneakyThrows;
+import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -24,11 +27,9 @@ import java.util.stream.Collectors;
  * @author Misagh Moayyed
  * @since 5.0.0
  */
-public final class CollectionUtils {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CollectionUtils.class);
-
-    private CollectionUtils() {
-    }
+@Slf4j
+@UtilityClass
+public class CollectionUtils {
 
     /**
      * Converts the provided object into a collection
@@ -43,6 +44,22 @@ public final class CollectionUtils {
             return Optional.empty();
         }
         return Optional.of(object.iterator().next());
+    }
+
+    /**
+     * To collection t.
+     *
+     * @param <T>   the type parameter
+     * @param obj   the obj
+     * @param clazz the clazz
+     * @return the t
+     */
+    @SneakyThrows
+    public static <T extends Collection> T toCollection(final Object obj, final Class<T> clazz) {
+        final Set<Object> results = toCollection(obj);
+        final T col = clazz.getDeclaredConstructor().newInstance();
+        col.addAll(results);
+        return col;
     }
 
     /**
@@ -79,7 +96,7 @@ public final class CollectionUtils {
      * @param source the source
      * @return the map
      */
-    public static <K, V> Map<K, Collection<V>> wrap(final Multimap<K, V> source) {
+    public static <K, V> Map<K, V> wrap(final Multimap<K, V> source) {
         if (source != null && !source.isEmpty()) {
             final Map inner = source.asMap();
             final Map map = new HashMap<>();
@@ -114,7 +131,7 @@ public final class CollectionUtils {
      * @return the map
      */
     public static <K, V> Map<K, V> wrap(final String key, final Object value) {
-        final Map map = new HashMap<>();
+        final Map map = new LinkedHashMap();
         if (value != null && StringUtils.isNotBlank(key)) {
             map.put(key, value);
         }
@@ -133,7 +150,7 @@ public final class CollectionUtils {
      * @return the map
      */
     public static <K extends String, V extends Object> Map<K, V> wrap(final String key, final Object value,
-                                        final String key2, final Object value2) {
+                                                                      final String key2, final Object value2) {
         final Map m = wrap(key, value);
         m.put(key2, value2);
         return m;
@@ -212,6 +229,69 @@ public final class CollectionUtils {
     }
 
     /**
+     * Wrap map.
+     *
+     * @param <K>    the type parameter
+     * @param <V>    the type parameter
+     * @param key    the key
+     * @param value  the value
+     * @param key2   the key 2
+     * @param value2 the value 2
+     * @param key3   the key 3
+     * @param value3 the value 3
+     * @param key4   the key 4
+     * @param value4 the value 4
+     * @param key5   the key 5
+     * @param value5 the value 5
+     * @param key6   the key 6
+     * @param value6 the value 6
+     * @return the map
+     */
+    public static <K, V> Map<K, V> wrap(final String key, final Object value,
+                                        final String key2, final Object value2,
+                                        final String key3, final Object value3,
+                                        final String key4, final Object value4,
+                                        final String key5, final Object value5,
+                                        final String key6, final Object value6) {
+        final Map m = wrap(key, value, key2, value2, key3, value3, key4, value4, key5, value5);
+        m.put(key6, value6);
+        return m;
+    }
+
+    /**
+     * Wrap map.
+     *
+     * @param <K>    the type parameter
+     * @param <V>    the type parameter
+     * @param key    the key
+     * @param value  the value
+     * @param key2   the key 2
+     * @param value2 the value 2
+     * @param key3   the key 3
+     * @param value3 the value 3
+     * @param key4   the key 4
+     * @param value4 the value 4
+     * @param key5   the key 5
+     * @param value5 the value 5
+     * @param key6   the key 6
+     * @param value6 the value 6
+     * @param key7   the key 7
+     * @param value7 the value 7
+     * @return the map
+     */
+    public static <K, V> Map<K, V> wrap(final String key, final Object value,
+                                        final String key2, final Object value2,
+                                        final String key3, final Object value3,
+                                        final String key4, final Object value4,
+                                        final String key5, final Object value5,
+                                        final String key6, final Object value6,
+                                        final String key7, final Object value7) {
+        final Map m = wrap(key, value, key2, value2, key3, value3, key4, value4, key5, value5, key6, value6);
+        m.put(key7, value7);
+        return m;
+    }
+
+    /**
      * Wraps a possibly null list in an immutable wrapper.
      *
      * @param <T>    the type parameter
@@ -282,7 +362,7 @@ public final class CollectionUtils {
     }
 
     /**
-     * Wrap set set.
+     * Wrap set.
      *
      * @param <T>    the type parameter
      * @param source the source
@@ -290,6 +370,19 @@ public final class CollectionUtils {
      */
     public static <T> Set<T> wrapSet(final T... source) {
         final Set<T> list = new LinkedHashSet<>();
+        addToCollection(list, source);
+        return list;
+    }
+
+    /**
+     * Wrap hash set.
+     *
+     * @param <T>    the type parameter
+     * @param source the source
+     * @return the set
+     */
+    public static <T> HashSet<T> wrapHashSet(final T... source) {
+        final HashSet<T> list = new HashSet<>();
         addToCollection(list, source);
         return list;
     }

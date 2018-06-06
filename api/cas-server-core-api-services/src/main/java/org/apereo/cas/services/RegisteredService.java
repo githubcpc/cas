@@ -19,7 +19,7 @@ import java.util.Set;
  * @since 3.1
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY)
-public interface RegisteredService extends Cloneable, Serializable, Comparable<RegisteredService> {
+public interface RegisteredService extends Serializable, Comparable<RegisteredService> {
 
     /**
      * The logout type.
@@ -121,6 +121,12 @@ public interface RegisteredService extends Cloneable, Serializable, Comparable<R
     void setEvaluationOrder(int evaluationOrder);
 
     /**
+     * Sets the identifier for this service. Use {@link #INITIAL_IDENTIFIER_VALUE} to indicate a branch new service definition.
+     * @param id the numeric identifier for the service.
+     */
+    void setId(long id);
+    
+    /**
      * Get the name of the attribute this service prefers to consume as username.
      *
      * @return an instance of {@link RegisteredServiceUsernameAttributeProvider}
@@ -166,13 +172,6 @@ public interface RegisteredService extends Cloneable, Serializable, Comparable<R
      * @return true if they match, false otherwise.
      */
     boolean matches(String serviceId);
-
-    /**
-     * Clone this service.
-     *
-     * @return the registered service
-     */
-    RegisteredService clone();
 
     /**
      * Returns the logout type of the service.

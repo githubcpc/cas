@@ -1,22 +1,28 @@
 package org.apereo.cas.authentication;
 
+import com.google.common.base.Splitter;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import groovy.lang.GroovyClassLoader;
+import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apereo.cas.authentication.support.password.DefaultPasswordPolicyHandlingStrategy;
+import org.apereo.cas.authentication.support.password.GroovyPasswordPolicyHandlingStrategy;
+import org.apereo.cas.authentication.support.password.RejectResultCodePasswordPolicyHandlingStrategy;
+import org.apereo.cas.configuration.model.core.authentication.PasswordPolicyProperties;
 import org.apereo.cas.configuration.support.Beans;
 import org.apereo.cas.util.CollectionUtils;
 import org.codehaus.groovy.control.CompilerConfiguration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Collection;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -28,11 +34,10 @@ import java.util.regex.Pattern;
  * @author Misagh Moayyed
  * @since 5.2.0
  */
-public final class CoreAuthenticationUtils {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CoreAuthenticationUtils.class);
 
-    private CoreAuthenticationUtils() {
-    }
+@Slf4j
+@UtilityClass
+public class CoreAuthenticationUtils {
 
     /**
      * Transform principal attributes list into map map.
@@ -40,8 +45,8 @@ public final class CoreAuthenticationUtils {
      * @param list the list
      * @return the map
      */
-    public static Map<String, Collection<String>> transformPrincipalAttributesListIntoMap(final List<String> list) {
-        final Multimap<String, String> map = transformPrincipalAttributesListIntoMultiMap(list);
+    public static Map<String, Object> transformPrincipalAttributesListIntoMap(final List<String> list) {
+        final Multimap<String, Object> map = transformPrincipalAttributesListIntoMultiMap(list);
         return CollectionUtils.wrap(map);
     }
 
@@ -52,18 +57,17 @@ public final class CoreAuthenticationUtils {
      * @param list the list
      * @return the map
      */
-    public static Multimap<String, String> transformPrincipalAttributesListIntoMultiMap(final List<String> list) {
-
-        final Multimap<String, String> multimap = ArrayListMultimap.create();
+    public static Multimap<String, Object> transformPrincipalAttributesListIntoMultiMap(final List<String> list) {
+        final Multimap<String, Object> multimap = ArrayListMultimap.create();
         if (list.isEmpty()) {
             LOGGER.debug("No principal attributes are defined");
         } else {
             list.forEach(a -> {
                 final String attributeName = a.trim();
                 if (attributeName.contains(":")) {
-                    final String[] attrCombo = attributeName.split(":");
-                    final String name = attrCombo[0].trim();
-                    final String value = attrCombo[1].trim();
+                    final List<String> attrCombo = Splitter.on(":").splitToList(attributeName);
+                    final String name = attrCombo.get(0).trim();
+                    final String value = attrCombo.get(1).trim();
                     LOGGER.debug("Mapped principal attribute name [{}] to [{}]", name, value);
                     multimap.put(name, value);
                 } else {
@@ -93,9 +97,12 @@ public final class CoreAuthenticationUtils {
                 final Resource resource = loader.getResource(selectionCriteria);
                 if (resource != null) {
                     final String script = IOUtils.toString(resource.getInputStream(), StandardCharsets.UTF_8);
-                    final GroovyClassLoader classLoader = new GroovyClassLoader(Beans.class.getClassLoader(),
+
+                    final Class<Predicate> clz = AccessController.doPrivileged((PrivilegedAction<Class<Predicate>>) () -> {
+                        final GroovyClassLoader classLoader = new GroovyClassLoader(Beans.class.getClassLoader(),
                             new CompilerConfiguration(), true);
-                    final Class<Predicate> clz = classLoader.parseClass(script);
+                        return classLoader.parseClass(script);
+                    });
                     return clz.getDeclaredConstructor().newInstance();
                 }
             }
@@ -106,5 +113,27 @@ public final class CoreAuthenticationUtils {
             final Predicate<String> predicate = Pattern.compile(selectionCriteria).asPredicate();
             return credential -> predicate.test(credential.getId());
         }
+    }
+
+    /**
+     * New password policy handling strategy.
+     *
+     * @param properties the properties
+     * @return the authentication password policy handling strategy
+     */
+    public static AuthenticationPasswordPolicyHandlingStrategy newPasswordPolicyHandlingStrategy(final PasswordPolicyProperties properties) {
+        if (properties.getStrategy() == PasswordPolicyProperties.PasswordPolicyHandlingOptions.REJECT_RESULT_CODE) {
+            LOGGER.debug("Created password policy handling strategy based on blacklisted authentication result codes");
+            return new RejectResultCodePasswordPolicyHandlingStrategy();
+        }
+
+        final Resource location = properties.getGroovy().getLocation();
+        if (properties.getStrategy() == PasswordPolicyProperties.PasswordPolicyHandlingOptions.GROOVY && location != null) {
+            LOGGER.debug("Created password policy handling strategy based on Groovy script [{}]", location);
+            return new GroovyPasswordPolicyHandlingStrategy(location);
+        }
+
+        LOGGER.debug("Created default password policy handling strategy");
+        return new DefaultPasswordPolicyHandlingStrategy();
     }
 }

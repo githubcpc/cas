@@ -1,14 +1,15 @@
 package org.apereo.cas.authentication.principal.resolvers;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apereo.cas.authentication.AuthenticationHandler;
 import org.apereo.cas.authentication.Credential;
 import org.apereo.cas.authentication.principal.Principal;
 import org.apereo.cas.authentication.principal.PrincipalResolver;
 import org.apereo.services.persondir.IPersonAttributeDao;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.ToString;
+
+import java.util.Optional;
 
 /**
  * This is {@link EchoingPrincipalResolver}.
@@ -16,23 +17,19 @@ import org.slf4j.LoggerFactory;
  * @author Misagh Moayyed
  * @since 5.1.0
  */
+@Slf4j
+@ToString
 public class EchoingPrincipalResolver implements PrincipalResolver {
-    private static final Logger LOGGER = LoggerFactory.getLogger(EchoingPrincipalResolver.class);
 
     @Override
-    public Principal resolve(final Credential credential, final Principal principal, final AuthenticationHandler handler) {
+    public Principal resolve(final Credential credential, final Optional<Principal> principal, final Optional<AuthenticationHandler> handler) {
         LOGGER.debug("Echoing back the authenticated principal [{}]", principal);
-        return principal;
+        return principal.isPresent() ? principal.get() : null;
     }
 
     @Override
     public boolean supports(final Credential credential) {
         return StringUtils.isNotBlank(credential.getId());
-    }
-
-    @Override
-    public String toString() {
-        return new ToStringBuilder(this).toString();
     }
 
     @Override

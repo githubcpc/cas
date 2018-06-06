@@ -1,12 +1,16 @@
 package org.apereo.cas.logout;
 
+import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.authentication.principal.WebApplicationService;
 import org.apereo.cas.services.RegisteredService;
+import org.apereo.cas.util.CollectionUtils;
 import org.apereo.cas.web.UrlValidator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collection;
 
 /**
  * This is {@link DefaultSingleLogoutServiceLogoutUrlBuilder} which acts on a registered
@@ -15,33 +19,26 @@ import java.net.URL;
  * @author Misagh Moayyed
  * @since 5.0.0
  */
+@Slf4j
+@RequiredArgsConstructor
 public class DefaultSingleLogoutServiceLogoutUrlBuilder implements SingleLogoutServiceLogoutUrlBuilder {
-    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultSingleLogoutServiceLogoutUrlBuilder.class);
-
-    private final UrlValidator urlValidator; 
-
-    public DefaultSingleLogoutServiceLogoutUrlBuilder(final UrlValidator urlValidator) {
-        this.urlValidator = urlValidator;
-    }
+    private final UrlValidator urlValidator;
 
     @Override
-    public URL determineLogoutUrl(final RegisteredService registeredService, final WebApplicationService singleLogoutService) {
-        try {
-            final URL serviceLogoutUrl = registeredService.getLogoutUrl();
-            if (serviceLogoutUrl != null) {
-                LOGGER.debug("Logout request will be sent to [{}] for service [{}]", serviceLogoutUrl, singleLogoutService);
-                return serviceLogoutUrl;
-            }
-            final String originalUrl = singleLogoutService.getOriginalUrl();
-            if (this.urlValidator.isValid(originalUrl)) {
-                LOGGER.debug("Logout request will be sent to [{}] for service [{}]", originalUrl, singleLogoutService);
-                return new URL(originalUrl);
-            } else {
-                LOGGER.debug("Logout request will not be sent, the URL [{}] for service [{}] is not valid", originalUrl, singleLogoutService);
-            }
-            return null;
-        } catch (final Exception e) {
-            throw new IllegalArgumentException(e);
+    @SneakyThrows
+    public Collection<URL> determineLogoutUrl(final RegisteredService registeredService, final WebApplicationService singleLogoutService) {
+        final URL serviceLogoutUrl = registeredService.getLogoutUrl();
+        if (serviceLogoutUrl != null) {
+            LOGGER.debug("Logout request will be sent to [{}] for service [{}]", serviceLogoutUrl, singleLogoutService);
+            return CollectionUtils.wrap(serviceLogoutUrl);
         }
+        final String originalUrl = singleLogoutService.getOriginalUrl();
+        if (this.urlValidator.isValid(originalUrl)) {
+            LOGGER.debug("Logout request will be sent to [{}] for service [{}]", originalUrl, singleLogoutService);
+            final URL url = new URL(originalUrl);
+            return CollectionUtils.wrap(url);
+        }
+        LOGGER.debug("Logout request will not be sent; The URL [{}] for service [{}] is not valid", originalUrl, singleLogoutService);
+        return new ArrayList<>();
     }
 }

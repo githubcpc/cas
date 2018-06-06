@@ -1,8 +1,10 @@
 package org.apereo.cas.authentication.principal;
 
+import lombok.Getter;
+import lombok.Setter;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apereo.cas.CasProtocolConstants;
 import org.apereo.cas.services.RegisteredService;
 import org.apereo.cas.services.ServicesManager;
@@ -18,6 +20,10 @@ import java.util.Map;
  * @author Misagh Moayyed
  * @since 4.2
  */
+@Slf4j
+@Getter
+@Setter
+@RequiredArgsConstructor
 public abstract class AbstractWebApplicationServiceResponseBuilder implements ResponseBuilder<WebApplicationService> {
     private static final long serialVersionUID = -4584738964007702423L;
 
@@ -26,9 +32,7 @@ public abstract class AbstractWebApplicationServiceResponseBuilder implements Re
      */
     protected final ServicesManager servicesManager;
 
-    public AbstractWebApplicationServiceResponseBuilder(final ServicesManager servicesManager) {
-        this.servicesManager = servicesManager;
-    }
+    private int order;
 
     /**
      * Build redirect.
@@ -51,7 +55,6 @@ public abstract class AbstractWebApplicationServiceResponseBuilder implements Re
     protected Response buildHeader(final WebApplicationService service, final Map<String, String> parameters) {
         return DefaultResponse.getHeaderResponse(service.getOriginalUrl(), parameters);
     }
-
 
     /**
      * Build post.
@@ -92,29 +95,5 @@ public abstract class AbstractWebApplicationServiceResponseBuilder implements Re
         }
 
         return Response.ResponseType.REDIRECT;
-    }
-
-    @Override
-    public boolean equals(final Object obj) {
-        if (obj == null) {
-            return false;
-        }
-        if (obj == this) {
-            return true;
-        }
-        if (obj.getClass() != getClass()) {
-            return false;
-        }
-        return new EqualsBuilder().isEquals();
-    }
-
-    @Override
-    public int hashCode() {
-        return new HashCodeBuilder().toHashCode();
-    }
-
-    @Override
-    public int getOrder() {
-        return 0;
     }
 }

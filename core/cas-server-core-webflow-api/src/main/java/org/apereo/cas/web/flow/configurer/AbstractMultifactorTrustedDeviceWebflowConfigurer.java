@@ -1,9 +1,8 @@
 package org.apereo.cas.web.flow.configurer;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.configuration.CasConfigurationProperties;
 import org.apereo.cas.web.flow.CasWebflowConstants;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.webflow.definition.registry.FlowDefinitionRegistry;
 import org.springframework.webflow.engine.ActionState;
@@ -22,19 +21,16 @@ import java.util.Arrays;
  * @author Misagh Moayyed
  * @since 5.0.0
  */
+@Slf4j
 public abstract class AbstractMultifactorTrustedDeviceWebflowConfigurer extends AbstractCasMultifactorWebflowConfigurer {
     /**
      * Trusted authentication scope attribute.
      **/
     public static final String MFA_TRUSTED_AUTHN_SCOPE_ATTR = "mfaTrustedAuthentication";
-
-    private static final String STATE_ID_FINISH_MFA_TRUSTED_AUTH = "finishMfaTrustedAuth";
-
+    
     private static final String MFA_VERIFY_TRUST_ACTION_BEAN_ID = "mfaVerifyTrustAction";
     private static final String MFA_SET_TRUST_ACTION_BEAN_ID = "mfaSetTrustAction";
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractMultifactorTrustedDeviceWebflowConfigurer.class);
-
+    
     private final boolean enableDeviceRegistration;
 
     public AbstractMultifactorTrustedDeviceWebflowConfigurer(final FlowBuilderServices flowBuilderServices,
@@ -70,7 +66,7 @@ public abstract class AbstractMultifactorTrustedDeviceWebflowConfigurer extends 
 
         // handle device registration
         if (enableDeviceRegistration) {
-            createTransitionForState(verifyAction, CasWebflowConstants.TRANSITION_ID_YES, STATE_ID_FINISH_MFA_TRUSTED_AUTH);
+            createTransitionForState(verifyAction, CasWebflowConstants.TRANSITION_ID_YES, CasWebflowConstants.STATE_ID_FINISH_MFA_TRUSTED_AUTH);
         } else {
             createTransitionForState(verifyAction, CasWebflowConstants.TRANSITION_ID_YES, CasWebflowConstants.STATE_ID_REAL_SUBMIT);
         }
@@ -100,7 +96,7 @@ public abstract class AbstractMultifactorTrustedDeviceWebflowConfigurer extends 
             throw new IllegalArgumentException("There are no actions defined for the final submission event of " + flowId);
         }
         final Action act = submit.getActionList().iterator().next();
-        final ActionState finishMfaTrustedAuth = createActionState(flow, STATE_ID_FINISH_MFA_TRUSTED_AUTH, act);
+        final ActionState finishMfaTrustedAuth = createActionState(flow, CasWebflowConstants.STATE_ID_FINISH_MFA_TRUSTED_AUTH, act);
         final Transition finishedTransition = createTransition(CasWebflowConstants.TRANSITION_ID_SUCCESS, CasWebflowConstants.STATE_ID_SUCCESS);
         finishMfaTrustedAuth.getTransitionSet().add(finishedTransition);
         createStateDefaultTransition(finishMfaTrustedAuth, CasWebflowConstants.STATE_ID_SUCCESS);

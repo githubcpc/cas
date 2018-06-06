@@ -1,9 +1,10 @@
 package org.apereo.cas.web.support;
 
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.authentication.principal.ServiceFactory;
 import org.apereo.cas.authentication.principal.WebApplicationService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apereo.cas.util.CollectionUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -17,16 +18,17 @@ import java.util.Objects;
  * @author Misagh Moayyed
  * @since 4.2
  */
+@Slf4j
+@Getter
 public class DefaultArgumentExtractor extends AbstractArgumentExtractor {
-    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultArgumentExtractor.class);
-    
+
     /**
      * Instantiates a new argument extractor.
      *
      * @param serviceFactory the service factory
      */
     public DefaultArgumentExtractor(final ServiceFactory<? extends WebApplicationService> serviceFactory) {
-        super(serviceFactory);
+        super(CollectionUtils.wrapList(serviceFactory));
     }
 
     /**
@@ -43,12 +45,12 @@ public class DefaultArgumentExtractor extends AbstractArgumentExtractor {
         return getServiceFactories().stream().map(factory -> {
             final WebApplicationService service = factory.createService(request);
             if (service != null) {
-                LOGGER.debug("Created [{}] based on [{}]", service, factory);
+                LOGGER.trace("Created [{}] based on [{}]", service, factory);
                 return service;
             }
             return null;
         }).filter(Objects::nonNull).findFirst().orElseGet(() -> {
-            LOGGER.debug("No service could be extracted based on the given request");
+            LOGGER.trace("No service could be extracted based on the given request");
             return null;
         });
     }

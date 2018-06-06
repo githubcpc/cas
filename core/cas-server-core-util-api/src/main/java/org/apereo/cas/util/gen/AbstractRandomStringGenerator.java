@@ -1,5 +1,7 @@
 package org.apereo.cas.util.gen;
 
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.util.RandomUtils;
 
 import java.nio.charset.StandardCharsets;
@@ -15,9 +17,11 @@ import java.security.SecureRandom;
 
  * @since 5.2.0
  */
+@Slf4j
+@Getter
 public abstract class AbstractRandomStringGenerator implements RandomStringGenerator{
     /** An instance of secure random to ensure randomness is secure. */
-    protected final SecureRandom randomizer = RandomUtils.getInstanceNative();
+    protected final SecureRandom randomizer = RandomUtils.getNativeInstance();
 
     /** Default string length before encoding. */
     protected final int defaultLength;
@@ -40,11 +44,6 @@ public abstract class AbstractRandomStringGenerator implements RandomStringGener
     }
 
     @Override
-    public int getDefaultLength() {
-        return defaultLength;
-    }
-
-    @Override
     public String getAlgorithm() {
         return randomizer.getAlgorithm();
     }
@@ -62,12 +61,12 @@ public abstract class AbstractRandomStringGenerator implements RandomStringGener
     @Override
     public String getNewString(final int size) {
         final byte[] random = getNewStringAsBytes(size);
-        return this.convertBytesToString(random);
+        return convertBytesToString(random);
     }
 
     @Override
     public String getNewString() {
-        return getNewString(this.getDefaultLength());
+        return getNewString(getDefaultLength());
     }
 
     @Override

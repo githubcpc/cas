@@ -1,8 +1,12 @@
 package org.apereo.cas.web.support;
 
+import lombok.NonNull;
+import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apereo.cas.authentication.Authentication;
+import org.apereo.cas.authentication.AuthenticationCredentialsThreadLocalBinder;
 import org.apereo.cas.authentication.AuthenticationResult;
 import org.apereo.cas.authentication.AuthenticationResultBuilder;
 import org.apereo.cas.authentication.Credential;
@@ -20,16 +24,16 @@ import org.apereo.cas.ticket.TicketGrantingTicket;
 import org.apereo.cas.ticket.registry.TicketRegistrySupport;
 import org.apereo.cas.util.HttpRequestUtils;
 import org.apereo.cas.web.flow.CasWebflowConstants;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.util.CookieGenerator;
 import org.springframework.webflow.context.ExternalContextHolder;
 import org.springframework.webflow.context.servlet.ServletExternalContext;
 import org.springframework.webflow.core.collection.MutableAttributeMap;
+import org.springframework.webflow.execution.Event;
 import org.springframework.webflow.execution.FlowSession;
 import org.springframework.webflow.execution.RequestContext;
+import org.springframework.webflow.execution.RequestContextHolder;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -39,6 +43,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Common utilities for the web tier.
@@ -46,7 +51,10 @@ import java.util.Map;
  * @author Scott Battaglia
  * @since 3.1
  */
-public final class WebUtils {
+
+@Slf4j
+@UtilityClass
+public class WebUtils {
 
     /**
      * Request attribute that contains message key describing details of authorization failure.
@@ -57,8 +65,6 @@ public final class WebUtils {
      * Ticket-granting ticket id parameter used in various flow scopes.
      */
     public static final String PARAMETER_TICKET_GRANTING_TICKET_ID = "ticketGrantingTicketId";
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(WebUtils.class);
 
     private static final String PUBLIC_WORKSTATION_ATTRIBUTE = "publicWorkstation";
     private static final String PARAMETER_AUTHENTICATION = "authentication";
@@ -73,12 +79,6 @@ public final class WebUtils {
     private static final String PARAMETER_SERVICE_UI_METADATA = "serviceUIMetadata";
 
     /**
-     * Instantiates a new web utils instance.
-     */
-    private WebUtils() {
-    }
-
-    /**
      * Gets the http servlet request from the context.
      *
      * @param context the context
@@ -86,8 +86,8 @@ public final class WebUtils {
      */
     public static HttpServletRequest getHttpServletRequestFromExternalWebflowContext(final RequestContext context) {
         Assert.isInstanceOf(ServletExternalContext.class, context.getExternalContext(),
-                "Cannot obtain HttpServletRequest from event of type: "
-                        + context.getExternalContext().getClass().getName());
+            "Cannot obtain HttpServletRequest from event of type: "
+                + context.getExternalContext().getClass().getName());
 
         return (HttpServletRequest) context.getExternalContext().getNativeRequest();
     }
@@ -105,7 +105,7 @@ public final class WebUtils {
         return null;
 
     }
-    
+
     /**
      * Gets the http servlet response from the context.
      *
@@ -114,7 +114,7 @@ public final class WebUtils {
      */
     public static HttpServletResponse getHttpServletResponseFromExternalWebflowContext(final RequestContext context) {
         Assert.isInstanceOf(ServletExternalContext.class, context.getExternalContext(),
-                "Cannot obtain HttpServletResponse from event of type: " + context.getExternalContext().getClass().getName());
+            "Cannot obtain HttpServletResponse from event of type: " + context.getExternalContext().getClass().getName());
         return (HttpServletResponse) context.getExternalContext().getNativeResponse();
     }
 
@@ -130,7 +130,7 @@ public final class WebUtils {
         }
         return null;
     }
-    
+
 
     /**
      * Gets the service.
@@ -256,7 +256,7 @@ public final class WebUtils {
     public static URI getUnauthorizedRedirectUrlIntoFlowScope(final RequestContext context) {
         return context.getFlowScope().get(PARAMETER_UNAUTHORIZED_REDIRECT_URL, URI.class);
     }
-    
+
     /**
      * Put logout requests into flow scope.
      *
@@ -326,16 +326,15 @@ public final class WebUtils {
      * @param clazz   the clazz
      * @return the credential
      */
-    public static <T extends Credential> T getCredential(final RequestContext context, final Class<T> clazz) {
-        Assert.notNull(clazz, "clazz cannot be null");
+    public static <T extends Credential> T getCredential(final RequestContext context, @NonNull final Class<T> clazz) {
         final Credential credential = getCredential(context);
         if (credential == null) {
             return null;
         }
         if (!clazz.isAssignableFrom(credential.getClass())) {
             throw new ClassCastException("credential [" + credential.getId()
-                    + " is of type " + credential.getClass()
-                    + " when we were expecting " + clazz);
+                + " is of type " + credential.getClass()
+                + " when we were expecting " + clazz);
         }
         return (T) credential;
     }
@@ -390,7 +389,7 @@ public final class WebUtils {
             context.getConversationScope().put(PARAMETER_CREDENTIAL, c);
         }
     }
-    
+
 
     /**
      * Is authenticating at a public workstation?
@@ -426,13 +425,13 @@ public final class WebUtils {
      */
     public static void putWarnCookieIfRequestParameterPresent(final CookieGenerator warnCookieGenerator, final RequestContext context) {
         if (warnCookieGenerator != null) {
-            LOGGER.debug("Evaluating request to determine if warning cookie should be generated");
+            LOGGER.trace("Evaluating request to determine if warning cookie should be generated");
             final HttpServletResponse response = WebUtils.getHttpServletResponseFromExternalWebflowContext(context);
             if (StringUtils.isNotBlank(context.getExternalContext().getRequestParameterMap().get("warn"))) {
                 warnCookieGenerator.addCookie(response, "true");
             }
         } else {
-            LOGGER.debug("No warning cookie generator is defined");
+            LOGGER.trace("No warning cookie generator is defined");
         }
     }
 
@@ -512,17 +511,28 @@ public final class WebUtils {
     public static AuthenticationResult getAuthenticationResult(final RequestContext ctx) {
         return ctx.getConversationScope().get(PARAMETER_AUTHENTICATION_RESULT, AuthenticationResult.class);
     }
-    
+
     /**
      * Gets http servlet request user agent.
      *
      * @return the http servlet request user agent
      */
     public static String getHttpServletRequestUserAgentFromRequestContext() {
-        final HttpServletRequest httpServletRequestFromExternalWebflowContext = getHttpServletRequestFromExternalWebflowContext();
-        return HttpRequestUtils.getHttpServletRequestUserAgent(httpServletRequestFromExternalWebflowContext);
+        final HttpServletRequest request = getHttpServletRequestFromExternalWebflowContext();
+        return HttpRequestUtils.getHttpServletRequestUserAgent(request);
     }
-    
+
+    /**
+     * Gets http servlet request user agent from request context.
+     *
+     * @param context the context
+     * @return the http servlet request user agent from request context
+     */
+    public static String getHttpServletRequestUserAgentFromRequestContext(final RequestContext context) {
+        final HttpServletRequest request = getHttpServletRequestFromExternalWebflowContext(context);
+        return HttpRequestUtils.getHttpServletRequestUserAgent(request);
+    }
+
     /**
      * Gets http servlet request geo location.
      *
@@ -530,6 +540,27 @@ public final class WebUtils {
      */
     public static GeoLocationRequest getHttpServletRequestGeoLocationFromRequestContext() {
         final HttpServletRequest servletRequest = getHttpServletRequestFromExternalWebflowContext();
+        return getHttpServletRequestGeoLocation(servletRequest);
+    }
+
+    /**
+     * Gets http servlet request geo location from request context.
+     *
+     * @param context the context
+     * @return the http servlet request geo location from request context
+     */
+    public static GeoLocationRequest getHttpServletRequestGeoLocationFromRequestContext(final RequestContext context) {
+        final HttpServletRequest servletRequest = getHttpServletRequestFromExternalWebflowContext(context);
+        return getHttpServletRequestGeoLocation(servletRequest);
+    }
+
+    /**
+     * Gets http servlet request geo location.
+     *
+     * @param servletRequest the servlet request
+     * @return the http servlet request geo location
+     */
+    public static GeoLocationRequest getHttpServletRequestGeoLocation(final HttpServletRequest servletRequest) {
         if (servletRequest != null) {
             return HttpRequestUtils.getHttpServletRequestGeoLocation(servletRequest);
         }
@@ -642,7 +673,7 @@ public final class WebUtils {
      * @param context the context
      * @return the boolean
      */
-    public static boolean isRememberMeAuthenticationEnabled(final RequestContext context) {
+    public static Boolean isRememberMeAuthenticationEnabled(final RequestContext context) {
         return context.getFlowScope().getBoolean("rememberMeAuthenticationEnabled", Boolean.FALSE);
     }
 
@@ -654,7 +685,8 @@ public final class WebUtils {
      */
     public static void putResolvedMultifactorAuthenticationProviders(final RequestContext context,
                                                                      final Collection<MultifactorAuthenticationProvider> value) {
-        context.getConversationScope().put("resolvedMultifactorAuthenticationProviders", value);
+        final Collection<String> providerIds = value.stream().map(MultifactorAuthenticationProvider::getId).collect(Collectors.toSet());
+        context.getConversationScope().put("resolvedMultifactorAuthenticationProviders", providerIds);
     }
 
     /**
@@ -663,7 +695,7 @@ public final class WebUtils {
      * @param context the context
      * @return the resolved multifactor authentication providers
      */
-    public static Collection<MultifactorAuthenticationProvider> getResolvedMultifactorAuthenticationProviders(final RequestContext context) {
+    public static Collection<String> getResolvedMultifactorAuthenticationProviders(final RequestContext context) {
         return context.getConversationScope().get("resolvedMultifactorAuthenticationProviders", Collection.class);
     }
 
@@ -735,4 +767,175 @@ public final class WebUtils {
         model.put("rootCauseException", e);
         return new ModelAndView(CasWebflowConstants.VIEW_ID_SERVICE_ERROR, model);
     }
+
+    /**
+     * Gets in progress authentication.
+     *
+     * @return the in progress authentication
+     */
+    public static Authentication getInProgressAuthentication() {
+        Authentication authentication = null;
+        final RequestContext context = RequestContextHolder.getRequestContext();
+        if (context != null) {
+            authentication = WebUtils.getAuthentication(context);
+        }
+        if (authentication == null) {
+            authentication = AuthenticationCredentialsThreadLocalBinder.getInProgressAuthentication();
+        }
+        return authentication;
+    }
+
+    /**
+     * Put passwordless authentication enabled.
+     *
+     * @param requestContext the request context
+     * @param value          the value
+     */
+    public static void putPasswordlessAuthenticationEnabled(final RequestContext requestContext, final Boolean value) {
+        requestContext.getFlowScope().put("passwordlessAuthenticationEnabled", value);
+    }
+
+    /**
+     * Put passwordless authentication account.
+     *
+     * @param requestContext the request context
+     * @param account        the account
+     */
+    public static void putPasswordlessAuthenticationAccount(final RequestContext requestContext, final Object account) {
+        requestContext.getFlowScope().put("passwordlessAccount", account);
+    }
+
+    /**
+     * Gets passwordless authentication account.
+     *
+     * @param <T>   the type parameter
+     * @param event the event
+     * @param clazz the clazz
+     * @return the passwordless authentication account
+     */
+    public static <T> T getPasswordlessAuthenticationAccount(final Event event, final Class<T> clazz) {
+        return event.getAttributes().get("passwordlessAccount", clazz);
+    }
+
+    /**
+     * Gets passwordless authentication account.
+     *
+     * @param <T>   the type parameter
+     * @param event the event
+     * @param clazz the clazz
+     * @return the passwordless authentication account
+     */
+    public static <T> T getPasswordlessAuthenticationAccount(final RequestContext event, final Class<T> clazz) {
+        return getPasswordlessAuthenticationAccount(event.getCurrentEvent(), clazz);
+    }
+
+    /**
+     * Has passwordless authentication account.
+     *
+     * @param requestContext the request context
+     * @return the boolean
+     */
+    public static boolean hasPasswordlessAuthenticationAccount(final RequestContext requestContext) {
+        return requestContext.getFlowScope().contains("passwordlessAccount");
+    }
+
+    /**
+     * Put request surrogate authentication.
+     *
+     * @param context the context
+     * @param value   the value
+     */
+    public static void putRequestSurrogateAuthentication(final RequestContext context, final Boolean value) {
+        context.getFlowScope().put("requestSurrogateAccount", value);
+    }
+
+    /**
+     * Has request surrogate authentication request.
+     *
+     * @param requestContext the request context
+     * @return the boolean
+     */
+    public static boolean hasRequestSurrogateAuthenticationRequest(final RequestContext requestContext) {
+        return requestContext.getFlowScope().getBoolean("requestSurrogateAccount", Boolean.FALSE);
+    }
+
+    /**
+     * Has request surrogate authentication request.
+     *
+     * @param requestContext the request context
+     */
+    public static void removeRequestSurrogateAuthenticationRequest(final RequestContext requestContext) {
+        requestContext.getFlowScope().remove("requestSurrogateAccount");
+    }
+
+    /**
+     * Put surrogate authentication accounts.
+     *
+     * @param requestContext the request context
+     * @param surrogates     the surrogates
+     */
+    public static void putSurrogateAuthenticationAccounts(final RequestContext requestContext, final List<String> surrogates) {
+        requestContext.getFlowScope().put("surrogates", surrogates);
+    }
+
+    /**
+     * Gets surrogate authentication accounts.
+     *
+     * @param requestContext the request context
+     * @return the surrogate authentication accounts
+     */
+    public static List<String> getSurrogateAuthenticationAccounts(final RequestContext requestContext) {
+        return requestContext.getFlowScope().get("surrogates", List.class);
+    }
+
+    /**
+     * Put graphical user authentication enabled.
+     *
+     * @param requestContext the request context
+     * @param value          the value
+     */
+    public static void putGraphicalUserAuthenticationEnabled(final RequestContext requestContext, final Boolean value) {
+        requestContext.getFlowScope().put("guaEnabled", value);
+    }
+
+    /**
+     * Put graphical user authentication username.
+     *
+     * @param requestContext the request context
+     * @param username       the username
+     */
+    public static void putGraphicalUserAuthenticationUsername(final RequestContext requestContext, final String username) {
+        requestContext.getFlowScope().put("guaUsername", username);
+    }
+
+    /**
+     * Contains graphical user authentication username.
+     *
+     * @param requestContext the request context
+     * @return the boolean
+     */
+    public static boolean containsGraphicalUserAuthenticationUsername(final RequestContext requestContext) {
+        return requestContext.getFlowScope().contains("guaUsername");
+    }
+
+    /**
+     * Put graphical user authentication image.
+     *
+     * @param requestContext the request context
+     * @param image          the image
+     */
+    public static void putGraphicalUserAuthenticationImage(final RequestContext requestContext, final String image) {
+        requestContext.getFlowScope().put("guaUserImage", image);
+    }
+
+    /**
+     * Contains graphical user authentication image boolean.
+     *
+     * @param requestContext the request context
+     * @return the boolean
+     */
+    public static boolean containsGraphicalUserAuthenticationImage(final RequestContext requestContext) {
+        return requestContext.getFlowScope().contains("guaUserImage");
+    }
+
 }

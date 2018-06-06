@@ -1,5 +1,6 @@
 package org.apereo.cas.authentication;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.config.CasCoreAuthenticationConfiguration;
 import org.apereo.cas.config.CasCoreAuthenticationHandlersConfiguration;
 import org.apereo.cas.config.CasCoreAuthenticationMetadataConfiguration;
@@ -62,6 +63,7 @@ import static org.junit.Assert.*;
     CasCoreServicesConfiguration.class,
     LdapAuthenticationConfiguration.class})
 @TestPropertySource(locations = {"classpath:/ldapauthn.properties"})
+@Slf4j
 public class LdapAuthenticationHandlerTests {
     @Rule
     public ExpectedException thrown = ExpectedException.none();
@@ -87,7 +89,7 @@ public class LdapAuthenticationHandlerTests {
 
         this.handler.forEach(Unchecked.consumer(h -> {
             final UsernamePasswordCredential credential = new UsernamePasswordCredential("castest1", "castest1");
-            final HandlerResult result = h.authenticate(credential);
+            final AuthenticationHandlerExecutionResult result = h.authenticate(credential);
             assertNotNull(result.getPrincipal());
             assertEquals(credential.getUsername(), result.getPrincipal().getId());
             final Map<String, Object> attributes = result.getPrincipal().getAttributes();

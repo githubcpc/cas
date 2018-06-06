@@ -1,20 +1,16 @@
 package org.apereo.cas.support.oauth.web.endpoints;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apereo.cas.CasProtocolConstants;
-import org.apereo.cas.authentication.principal.Principal;
 import org.apereo.cas.authentication.principal.PrincipalFactory;
-import org.apereo.cas.authentication.principal.Service;
 import org.apereo.cas.authentication.principal.ServiceFactory;
 import org.apereo.cas.authentication.principal.WebApplicationService;
 import org.apereo.cas.configuration.CasConfigurationProperties;
-import org.apereo.cas.services.RegisteredService;
 import org.apereo.cas.services.ServicesManager;
 import org.apereo.cas.support.oauth.OAuth20Constants;
 import org.apereo.cas.support.oauth.profile.OAuth20ProfileScopeToAttributesFilter;
-import org.apereo.cas.support.oauth.services.OAuthRegisteredService;
+import org.apereo.cas.support.oauth.profile.OAuth20UserProfileDataCreator;
 import org.apereo.cas.support.oauth.util.OAuth20Utils;
-import org.apereo.cas.support.oauth.validator.OAuth20Validator;
 import org.apereo.cas.support.oauth.web.views.OAuth20UserProfileViewRenderer;
 import org.apereo.cas.ticket.TicketGrantingTicket;
 import org.apereo.cas.ticket.TicketState;
@@ -25,8 +21,6 @@ import org.apereo.cas.util.Pac4jUtils;
 import org.apereo.cas.web.support.CookieRetrievingCookieGenerator;
 import org.pac4j.core.context.HttpConstants;
 import org.pac4j.core.context.J2EContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -35,7 +29,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -45,27 +38,35 @@ import java.util.Map;
  * @author Jerome Leleu
  * @since 3.5.0
  */
+@Slf4j
 public class OAuth20UserProfileEndpointController extends BaseOAuth20Controller {
-    private static final Logger LOGGER = LoggerFactory.getLogger(OAuth20UserProfileEndpointController.class);
 
     /**
      * View renderer for the final profile.
      */
-    protected final OAuth20UserProfileViewRenderer userProfileViewRenderer;
-            
+    private final OAuth20UserProfileViewRenderer userProfileViewRenderer;
+
+    /**
+     * User profile data creator.
+     */
+    private final OAuth20UserProfileDataCreator userProfileDataCreator;
+    private final ResponseEntity expiredAccessTokenResponseEntity;
+
     public OAuth20UserProfileEndpointController(final ServicesManager servicesManager,
                                                 final TicketRegistry ticketRegistry,
-                                                final OAuth20Validator validator,
                                                 final AccessTokenFactory accessTokenFactory,
                                                 final PrincipalFactory principalFactory,
                                                 final ServiceFactory<WebApplicationService> webApplicationServiceServiceFactory,
                                                 final OAuth20ProfileScopeToAttributesFilter scopeToAttributesFilter,
                                                 final CasConfigurationProperties casProperties,
                                                 final CookieRetrievingCookieGenerator cookieGenerator,
-                                                final OAuth20UserProfileViewRenderer userProfileViewRenderer) {
-        super(servicesManager, ticketRegistry, validator, accessTokenFactory, principalFactory,
-                webApplicationServiceServiceFactory, scopeToAttributesFilter, casProperties, cookieGenerator);
+                                                final OAuth20UserProfileViewRenderer userProfileViewRenderer,
+                                                final OAuth20UserProfileDataCreator userProfileDataCreator) {
+        super(servicesManager, ticketRegistry, accessTokenFactory, principalFactory,
+            webApplicationServiceServiceFactory, scopeToAttributesFilter, casProperties, cookieGenerator);
         this.userProfileViewRenderer = userProfileViewRenderer;
+        this.userProfileDataCreator = userProfileDataCreator;
+        this.expiredAccessTokenResponseEntity = buildUnauthorizedResponseEntity(OAuth20Constants.EXPIRED_ACCESS_TOKEN);
     }
 
     /**
@@ -81,42 +82,38 @@ public class OAuth20UserProfileEndpointController extends BaseOAuth20Controller 
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
         final J2EContext context = Pac4jUtils.getPac4jJ2EContext(request, response);
-            
+
         final String accessToken = getAccessTokenFromRequest(request);
         if (StringUtils.isBlank(accessToken)) {
-            LOGGER.error("Missing [{}]", OAuth20Constants.ACCESS_TOKEN);
+            LOGGER.error("Missing [{}] from the request", OAuth20Constants.ACCESS_TOKEN);
             return buildUnauthorizedResponseEntity(OAuth20Constants.MISSING_ACCESS_TOKEN);
         }
 
         final AccessToken accessTokenTicket = this.ticketRegistry.getTicket(accessToken, AccessToken.class);
-        if (accessTokenTicket == null || accessTokenTicket.isExpired()) {
-            LOGGER.error("Expired/Missing access token: [{}]", accessToken);
-            return buildUnauthorizedResponseEntity(OAuth20Constants.EXPIRED_ACCESS_TOKEN);
+
+        if (accessTokenTicket == null) {
+            LOGGER.error("Access token [{}] cannot be found in the ticket registry.", accessToken);
+            return expiredAccessTokenResponseEntity;
+        }
+        if (accessTokenTicket.isExpired()) {
+            LOGGER.error("Access token [{}] has expired and will be removed from the ticket registry", accessToken);
+            this.ticketRegistry.deleteTicket(accessToken);
+            return expiredAccessTokenResponseEntity;
         }
 
-        final TicketGrantingTicket ticketGrantingTicket = accessTokenTicket.getGrantingTicket();
-        if (ticketGrantingTicket == null || ticketGrantingTicket.isExpired()) {
-            LOGGER.error("Ticket granting ticket [{}] parenting access token [{}] has expired or is not found", ticketGrantingTicket, accessTokenTicket);
-            this.ticketRegistry.deleteTicket(accessToken);
-            return buildUnauthorizedResponseEntity(OAuth20Constants.EXPIRED_ACCESS_TOKEN);
+        if (casProperties.getLogout().isRemoveDescendantTickets()) {
+            final TicketGrantingTicket ticketGrantingTicket = accessTokenTicket.getTicketGrantingTicket();
+            if (ticketGrantingTicket == null || ticketGrantingTicket.isExpired()) {
+                LOGGER.error("Ticket granting ticket [{}] parenting access token [{}] has expired or is not found", ticketGrantingTicket, accessTokenTicket);
+                this.ticketRegistry.deleteTicket(accessToken);
+                return expiredAccessTokenResponseEntity;
+            }
         }
         updateAccessTokenUsage(accessTokenTicket);
 
-        final Map<String, Object> map = writeOutProfileResponse(accessTokenTicket, context);
-        finalizeProfileResponse(accessTokenTicket, map);
-
+        final Map<String, Object> map = this.userProfileDataCreator.createFrom(accessTokenTicket, context);
         final String value = this.userProfileViewRenderer.render(map, accessTokenTicket);
         return new ResponseEntity<>(value, HttpStatus.OK);
-    }
-
-    private void finalizeProfileResponse(final AccessToken accessTokenTicket, final Map<String, Object> map) {
-        final Service service = accessTokenTicket.getService();
-        final RegisteredService registeredService = servicesManager.findServiceBy(service);
-        if (registeredService instanceof OAuthRegisteredService) {
-            final OAuthRegisteredService oauth = (OAuthRegisteredService) registeredService;
-            map.put(OAuth20Constants.CLIENT_ID, oauth.getClientId());
-            map.put(CasProtocolConstants.PARAMETER_SERVICE, service.getId());
-        }
     }
 
     private void updateAccessTokenUsage(final AccessToken accessTokenTicket) {
@@ -145,41 +142,6 @@ public class OAuth20UserProfileEndpointController extends BaseOAuth20Controller 
         }
         LOGGER.debug("[{}]: [{}]", OAuth20Constants.ACCESS_TOKEN, accessToken);
         return accessToken;
-    }
-
-    /**
-     * Write out profile response.
-     *
-     * @param accessToken the access token
-     * @param context     the context
-     * @return the linked multi value map
-     */
-    protected Map<String, Object> writeOutProfileResponse(final AccessToken accessToken, final J2EContext context) {
-        final Principal principal = getAccessTokenAuthenticationPrincipal(accessToken, context);
-        final Map<String, Object> map = new HashMap<>();
-        map.put(OAuth20UserProfileViewRenderer.MODEL_ATTRIBUTE_ID, principal.getId());
-        map.put(OAuth20UserProfileViewRenderer.MODEL_ATTRIBUTE_ATTRIBUTES, principal.getAttributes());
-        return map;
-    }
-
-    /**
-     * Gets access token authentication principal.
-     *
-     * @param accessToken the access token
-     * @param context     the context
-     * @return the access token authentication principal
-     */
-    protected Principal getAccessTokenAuthenticationPrincipal(final AccessToken accessToken, final J2EContext context) {
-        final Service service = accessToken.getService();
-        final RegisteredService registeredService = servicesManager.findServiceBy(service);
-
-        final Principal currentPrincipal = accessToken.getAuthentication().getPrincipal();
-        LOGGER.debug("Preparing user profile response based on CAS principal [{}]", currentPrincipal);
-
-        final Principal principal = this.scopeToAttributesFilter.filter(accessToken.getService(), currentPrincipal,
-            registeredService, context, accessToken);
-        LOGGER.debug("Created CAS principal [{}] based on requested/authorized scopes", principal);
-        return principal;
     }
 
     /**

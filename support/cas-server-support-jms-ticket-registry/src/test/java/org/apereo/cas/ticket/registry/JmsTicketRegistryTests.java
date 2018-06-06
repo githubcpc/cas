@@ -1,5 +1,6 @@
 package org.apereo.cas.ticket.registry;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.StringBean;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -16,7 +17,8 @@ import java.util.Collection;
  * @since 5.2.0
  */
 @RunWith(Parameterized.class)
-public class JmsTicketRegistryTests extends AbstractTicketRegistryTests {
+@Slf4j
+public class JmsTicketRegistryTests extends BaseSpringRunnableTicketRegistryTests {
 
     public JmsTicketRegistryTests(final boolean useEncryption) {
         super(useEncryption);

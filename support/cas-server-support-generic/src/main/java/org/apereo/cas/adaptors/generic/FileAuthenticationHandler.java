@@ -1,7 +1,8 @@
 package org.apereo.cas.adaptors.generic;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apereo.cas.authentication.HandlerResult;
+import org.apereo.cas.authentication.AuthenticationHandlerExecutionResult;
 import org.apereo.cas.authentication.PreventedException;
 import org.apereo.cas.authentication.UsernamePasswordCredential;
 import org.apereo.cas.authentication.handler.support.AbstractUsernamePasswordAuthenticationHandler;
@@ -15,6 +16,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
 import java.util.stream.Stream;
 
 /**
@@ -30,6 +32,7 @@ import java.util.stream.Stream;
  * @author Marvin S. Addison
  * @since 3.0.0
  */
+@Slf4j
 public class FileAuthenticationHandler extends AbstractUsernamePasswordAuthenticationHandler {
 
     /**
@@ -47,7 +50,8 @@ public class FileAuthenticationHandler extends AbstractUsernamePasswordAuthentic
      */
     private final Resource fileName;
 
-    public FileAuthenticationHandler(final String name, final ServicesManager servicesManager, final PrincipalFactory principalFactory,
+    public FileAuthenticationHandler(final String name, final ServicesManager servicesManager,
+                                     final PrincipalFactory principalFactory,
                                      final Resource fileName, final String separator) {
         super(name, servicesManager, principalFactory, null);
         this.fileName = fileName;
@@ -55,8 +59,8 @@ public class FileAuthenticationHandler extends AbstractUsernamePasswordAuthentic
     }
 
     @Override
-    protected HandlerResult authenticateUsernamePasswordInternal(final UsernamePasswordCredential transformedCredential,
-                                                                 final String originalPassword)
+    protected AuthenticationHandlerExecutionResult authenticateUsernamePasswordInternal(final UsernamePasswordCredential transformedCredential,
+                                                                                        final String originalPassword)
         throws GeneralSecurityException, PreventedException {
         try {
             if (this.fileName == null) {
@@ -68,7 +72,7 @@ public class FileAuthenticationHandler extends AbstractUsernamePasswordAuthentic
                 throw new AccountNotFoundException(username + " not found in backing file.");
             }
             if (matches(originalPassword, passwordOnRecord)) {
-                return createHandlerResult(transformedCredential, this.principalFactory.createPrincipal(username), null);
+                return createHandlerResult(transformedCredential, this.principalFactory.createPrincipal(username), new ArrayList<>(0));
             }
         } catch (final IOException e) {
             throw new PreventedException("IO error reading backing file", e);

@@ -1,5 +1,6 @@
 package org.apereo.cas.configuration.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.CipherExecutor;
 import org.apereo.cas.configuration.CasConfigurationPropertiesEnvironmentManager;
 import org.apereo.cas.configuration.DefaultCasConfigurationPropertiesSourceLocator;
@@ -8,6 +9,7 @@ import org.apereo.cas.configuration.support.CasConfigurationJasyptCipherExecutor
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.ConfigurationPropertiesBindingPostProcessor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -22,7 +24,11 @@ import org.springframework.core.env.Environment;
 @Profile("standalone")
 @ConditionalOnProperty(value = "spring.cloud.config.enabled", havingValue = "false")
 @Configuration("casCoreBootstrapStandaloneLocatorConfiguration")
+@Slf4j
 public class CasCoreBootstrapStandaloneLocatorConfiguration {
+
+    @Autowired
+    private ConfigurationPropertiesBindingPostProcessor binder;
 
     @Autowired
     private Environment environment;
@@ -31,7 +37,7 @@ public class CasCoreBootstrapStandaloneLocatorConfiguration {
     @Bean
     public CasConfigurationPropertiesSourceLocator casConfigurationPropertiesSourceLocator() {
         return new DefaultCasConfigurationPropertiesSourceLocator(casConfigurationCipherExecutor(),
-            casConfigurationPropertiesEnvironmentManager());
+            configurationPropertiesEnvironmentManager());
     }
 
     @ConditionalOnMissingBean(name = "casConfigurationCipherExecutor")
@@ -40,9 +46,9 @@ public class CasCoreBootstrapStandaloneLocatorConfiguration {
         return new CasConfigurationJasyptCipherExecutor(environment);
     }
 
-    @ConditionalOnMissingBean(name = "casConfigurationPropertiesEnvironmentManager")
+    @ConditionalOnMissingBean(name = "configurationPropertiesEnvironmentManager")
     @Bean
-    public CasConfigurationPropertiesEnvironmentManager casConfigurationPropertiesEnvironmentManager() {
-        return new CasConfigurationPropertiesEnvironmentManager();
+    public CasConfigurationPropertiesEnvironmentManager configurationPropertiesEnvironmentManager() {
+        return new CasConfigurationPropertiesEnvironmentManager(binder, environment);
     }
 }

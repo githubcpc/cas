@@ -1,11 +1,13 @@
 package org.apereo.cas.web.flow;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.AbstractCentralAuthenticationServiceTests;
 import org.apereo.cas.authentication.AuthenticationResult;
 import org.apereo.cas.authentication.CoreAuthenticationTestUtils;
 import org.apereo.cas.mock.MockTicketGrantingTicket;
 import org.apereo.cas.ticket.TicketGrantingTicket;
 import org.apereo.cas.web.config.CasSupportActionsConfiguration;
+import org.apereo.cas.web.flow.login.TicketGrantingTicketCheckAction;
 import org.apereo.cas.web.support.WebUtils;
 import org.junit.Test;
 import org.springframework.context.annotation.Import;
@@ -23,10 +25,11 @@ import static org.junit.Assert.*;
  */
 @DirtiesContext
 @Import(CasSupportActionsConfiguration.class)
+@Slf4j
 public class TicketGrantingTicketCheckActionTests extends AbstractCentralAuthenticationServiceTests {
 
     @Test
-    public void verifyNullTicket() throws Exception {
+    public void verifyNullTicket() {
         final MockRequestContext ctx = new MockRequestContext();
         final TicketGrantingTicketCheckAction action = new
             TicketGrantingTicketCheckAction(this.getCentralAuthenticationService());
@@ -35,7 +38,7 @@ public class TicketGrantingTicketCheckActionTests extends AbstractCentralAuthent
     }
 
     @Test
-    public void verifyInvalidTicket() throws Exception {
+    public void verifyInvalidTicket() {
 
         final MockRequestContext ctx = new MockRequestContext();
         final MockTicketGrantingTicket tgt = new MockTicketGrantingTicket("user");
@@ -48,7 +51,7 @@ public class TicketGrantingTicketCheckActionTests extends AbstractCentralAuthent
     }
 
     @Test
-    public void verifyValidTicket() throws Exception {
+    public void verifyValidTicket() {
 
         final MockRequestContext ctx = new MockRequestContext();
         final AuthenticationResult ctxAuthN = CoreAuthenticationTestUtils.getAuthenticationResult(getAuthenticationSystemSupport());

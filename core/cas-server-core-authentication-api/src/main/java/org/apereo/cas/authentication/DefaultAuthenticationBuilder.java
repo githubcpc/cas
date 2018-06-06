@@ -1,8 +1,10 @@
 package org.apereo.cas.authentication;
 
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.authentication.principal.Principal;
 import org.apereo.cas.util.CollectionUtils;
-import org.springframework.util.Assert;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -18,24 +20,40 @@ import java.util.function.Predicate;
  * @author Marvin S. Addison
  * @since 4.0.0
  */
+@Slf4j
+@Getter
 public class DefaultAuthenticationBuilder implements AuthenticationBuilder {
+
     private static final long serialVersionUID = -8504842011648432398L;
-    /** Authenticated principal. */
+
+    /**
+     * Authenticated principal.
+     */
     private Principal principal;
 
-    /** Credential metadata. */
+    /**
+     * Credential metadata.
+     */
     private final List<CredentialMetaData> credentials = new ArrayList<>();
 
-    /** Authentication metadata attributes. */
+    /**
+     * Authentication metadata attributes.
+     */
     private final Map<String, Object> attributes = new LinkedHashMap<>();
 
-    /** Map of handler names to authentication successes. */
-    private final Map<String, HandlerResult> successes = new LinkedHashMap<>();
+    /**
+     * Map of handler names to authentication successes.
+     */
+    private final Map<String, AuthenticationHandlerExecutionResult> successes = new LinkedHashMap<>();
 
-    /** Map of handler names to authentication failures. */
-    private final Map<String, Class<? extends Throwable>> failures = new LinkedHashMap<>();
+    /**
+     * Map of handler names to authentication failures.
+     */
+    private final Map<String, Throwable> failures = new LinkedHashMap<>();
 
-    /** Authentication date. */
+    /**
+     * Authentication date.
+     */
     private ZonedDateTime authenticationDate;
 
     /**
@@ -57,35 +75,15 @@ public class DefaultAuthenticationBuilder implements AuthenticationBuilder {
     }
 
     /**
-     * Gets the authentication date.
-     *
-     * @return Authentication date.
-     */
-    public ZonedDateTime getAuthenticationDate() {
-        return this.authenticationDate;
-    }
-
-    /**
      * Sets the authentication date and returns this instance.
      *
      * @param d Authentication date.
-     *
      * @return This builder instance.
      */
     @Override
     public AuthenticationBuilder setAuthenticationDate(final ZonedDateTime d) {
         this.authenticationDate = d;
         return this;
-    }
-
-    /**
-     * Gets the authenticated principal.
-     *
-     * @return Principal.
-     */
-    @Override
-    public Principal getPrincipal() {
-        return this.principal;
     }
 
     @Override
@@ -98,7 +96,6 @@ public class DefaultAuthenticationBuilder implements AuthenticationBuilder {
      * Sets the principal returns this instance.
      *
      * @param p Authenticated principal.
-     *
      * @return This builder instance.
      */
     @Override
@@ -108,23 +105,12 @@ public class DefaultAuthenticationBuilder implements AuthenticationBuilder {
     }
 
     /**
-     * Gets the list of credentials that were attempted to be authenticated.
-     *
-     * @return Non-null list of credentials that attempted authentication.
-     */
-    public List<CredentialMetaData> getCredentials() {
-        return this.credentials;
-    }
-
-    /**
      * Sets the list of metadata about credentials presented for authentication.
      *
      * @param credentials Non-null list of credential metadata.
-     *
      * @return This builder instance.
      */
-    public AuthenticationBuilder setCredentials(final List<CredentialMetaData> credentials) {
-        Assert.notNull(credentials, "Credential cannot be null");
+    public AuthenticationBuilder setCredentials(@NonNull final List<CredentialMetaData> credentials) {
         this.credentials.clear();
         this.credentials.addAll(credentials);
         return this;
@@ -134,7 +120,6 @@ public class DefaultAuthenticationBuilder implements AuthenticationBuilder {
      * Adds metadata about a credential presented for authentication.
      *
      * @param credential Credential metadata.
-     *
      * @return This builder instance.
      */
     @Override
@@ -144,19 +129,9 @@ public class DefaultAuthenticationBuilder implements AuthenticationBuilder {
     }
 
     /**
-     * Gets the authentication attribute map.
-     *
-     * @return Non-null authentication attribute map.
-     */
-    public Map<String, Object> getAttributes() {
-        return this.attributes;
-    }
-
-    /**
      * Sets the authentication metadata attributes.
      *
      * @param attributes Non-null map of authentication metadata attributes.
-     *
      * @return This builder instance.
      */
     @Override
@@ -182,7 +157,7 @@ public class DefaultAuthenticationBuilder implements AuthenticationBuilder {
         if (this.attributes.containsKey(name)) {
             final Object value = this.attributes.get(name);
             final Collection valueCol = CollectionUtils.toCollection(value);
-            return valueCol.stream().filter(predicate).count() > 0;
+            return valueCol.stream().anyMatch(predicate);
         }
         return false;
     }
@@ -190,9 +165,8 @@ public class DefaultAuthenticationBuilder implements AuthenticationBuilder {
     /**
      * Adds an authentication metadata attribute key-value pair.
      *
-     * @param key Authentication attribute key.
+     * @param key   Authentication attribute key.
      * @param value Authentication attribute value.
-     *
      * @return This builder instance.
      */
     @Override
@@ -202,90 +176,75 @@ public class DefaultAuthenticationBuilder implements AuthenticationBuilder {
     }
 
     /**
-     * Gets the authentication success map.
-     *
-     * @return Non-null map of handler names to successful handler authentication results.
-     */
-    @Override
-    public Map<String, HandlerResult> getSuccesses() {
-        return this.successes;
-    }
-
-    /**
      * Sets the authentication handler success map.
      *
      * @param successes Non-null map of handler names to successful handler authentication results.
-     *
      * @return This builder instance.
      */
     @Override
-    public AuthenticationBuilder setSuccesses(final Map<String, HandlerResult> successes) {
-        Assert.notNull(successes, "Successes cannot be null");
+    public AuthenticationBuilder setSuccesses(@NonNull final Map<String, AuthenticationHandlerExecutionResult> successes) {
         this.successes.clear();
         return addSuccesses(successes);
     }
 
     @Override
-    public AuthenticationBuilder addSuccesses(final Map<String, HandlerResult> successes) {
-        successes.entrySet().stream().forEach(entry -> addSuccess(entry.getKey(), entry.getValue()));
+    public AuthenticationBuilder addSuccesses(final Map<String, AuthenticationHandlerExecutionResult> successes) {
+        successes.entrySet().forEach(entry -> addSuccess(entry.getKey(), entry.getValue()));
         return this;
     }
 
     /**
      * Adds an authentication success to the map of handler names to successful authentication handler results.
      *
-     * @param key Authentication handler name.
+     * @param key   Authentication handler name.
      * @param value Successful authentication handler result produced by handler of given name.
-     *
      * @return This builder instance.
      */
     @Override
-    public AuthenticationBuilder addSuccess(final String key, final HandlerResult value) {
+    public AuthenticationBuilder addSuccess(final String key, final AuthenticationHandlerExecutionResult value) {
+        LOGGER.debug("Recording authentication handler result success under key [{}]", key);
+        if (this.successes.containsKey(key)) {
+            LOGGER.debug("Key mapped to authentication handler result [{}] is already recorded in the list of successful attempts. Overriding...", key);
+        }
         this.successes.put(key, value);
         return this;
-    }
-
-    /**
-     * Gets the authentication failure map.
-     *
-     * @return Non-null authentication failure map.
-     */
-    @Override
-    public Map<String, Class<? extends Throwable>> getFailures() {
-        return this.failures;
     }
 
     /**
      * Sets the authentication handler failure map.
      *
      * @param failures Non-null map of handler name to authentication failures.
-     *
      * @return This builder instance.
      */
     @Override
-    public AuthenticationBuilder setFailures(final Map<String, Class<? extends Throwable>> failures) {
-        Assert.notNull(failures, "Failures cannot be null");
+    public AuthenticationBuilder setFailures(@NonNull final Map<String, Throwable> failures) {
         this.failures.clear();
         return addFailures(failures);
     }
 
     @Override
-    public AuthenticationBuilder addFailures(final Map<String, Class<? extends Throwable>> failures) {
-        failures.entrySet().stream().forEach(entry -> addFailure(entry.getKey(), entry.getValue()));
+    public AuthenticationBuilder addFailures(final Map<String, Throwable> failures) {
+        failures.entrySet().forEach(entry -> addFailure(entry.getKey(), entry.getValue()));
         return this;
     }
 
     /**
      * Adds an authentication failure to the map of handler names to the authentication handler failures.
      *
-     * @param key Authentication handler name.
+     * @param key   Authentication handler name.
      * @param value Exception raised on handler failure to authenticate credential.
-     *
      * @return This builder instance.
      */
     @Override
-    public AuthenticationBuilder addFailure(final String key, final Class<? extends Throwable> value) {
-        this.failures.put(key, value);
+    public AuthenticationBuilder addFailure(final String key, final Throwable value) {
+        LOGGER.debug("Recording authentication handler failure under key [{}]", key);
+        if (this.successes.containsKey(key)) {
+            final String newKey = key + System.currentTimeMillis();
+            LOGGER.debug("Key mapped to authentication handler failure [{}] is recorded in the list of failed attempts. Overriding with [{}]", key, newKey);
+            this.failures.put(newKey, value);
+        } else {
+            this.failures.put(key, value);
+        }
         return this;
     }
 
@@ -296,20 +255,13 @@ public class DefaultAuthenticationBuilder implements AuthenticationBuilder {
      */
     @Override
     public Authentication build() {
-        return new DefaultAuthentication(
-                this.authenticationDate,
-                this.credentials,
-                this.principal,
-                this.attributes,
-                this.successes,
-                this.failures);
+        return new DefaultAuthentication(this.authenticationDate, this.credentials, this.principal, this.attributes, this.successes, this.failures);
     }
 
     /**
      * Creates a new builder initialized with data from the given authentication source.
      *
      * @param source Authentication source.
-     *
      * @return New builder instance initialized with all fields in the given authentication source.
      */
     public static AuthenticationBuilder newInstance(final Authentication source) {

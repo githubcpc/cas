@@ -1,18 +1,12 @@
 package org.apereo.cas.support.saml.authentication;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.authentication.Authentication;
 import org.apereo.cas.authentication.AuthenticationBuilder;
-import org.apereo.cas.authentication.AuthenticationHandler;
-import org.apereo.cas.authentication.AuthenticationTransaction;
-import org.apereo.cas.authentication.BasicCredentialMetaData;
 import org.apereo.cas.authentication.CoreAuthenticationTestUtils;
 import org.apereo.cas.authentication.Credential;
-import org.apereo.cas.authentication.CredentialMetaData;
-import org.apereo.cas.authentication.DefaultAuthenticationBuilder;
-import org.apereo.cas.authentication.DefaultHandlerResult;
+import org.apereo.cas.authentication.DefaultAuthenticationTransaction;
 import org.apereo.cas.authentication.UsernamePasswordCredential;
-import org.apereo.cas.authentication.handler.support.SimpleTestUsernamePasswordAuthenticationHandler;
-import org.apereo.cas.authentication.principal.Principal;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -25,6 +19,7 @@ import static org.junit.Assert.*;
  * @author Scott Battaglia
  * @since 3.1
  */
+@Slf4j
 public class SamlAuthenticationMetaDataPopulatorTests {
 
     private SamlAuthenticationMetaDataPopulator populator;
@@ -37,9 +32,8 @@ public class SamlAuthenticationMetaDataPopulatorTests {
     @Test
     public void verifyAuthenticationTypeFound() {
         final UsernamePasswordCredential credentials = new UsernamePasswordCredential();
-        final AuthenticationBuilder builder = newAuthenticationBuilder(
-            CoreAuthenticationTestUtils.getPrincipal());
-        this.populator.populateAttributes(builder, AuthenticationTransaction.wrap(credentials));
+        final AuthenticationBuilder builder = CoreAuthenticationTestUtils.getAuthenticationBuilder();
+        this.populator.populateAttributes(builder, DefaultAuthenticationTransaction.of(credentials));
         final Authentication auth = builder.build();
 
         assertEquals(SamlAuthenticationMetaDataPopulator.AUTHN_METHOD_PASSWORD,
@@ -47,14 +41,12 @@ public class SamlAuthenticationMetaDataPopulatorTests {
     }
 
     @Test
-    public void verifyAuthenticationTypeNotFound() {
+    public void verifyAuthenticationTypeFoundByDefault() {
         final CustomCredential credentials = new CustomCredential();
-        final AuthenticationBuilder builder = newAuthenticationBuilder(
-            CoreAuthenticationTestUtils.getPrincipal());
-        this.populator.populateAttributes(builder, AuthenticationTransaction.wrap(credentials));
+        final AuthenticationBuilder builder = CoreAuthenticationTestUtils.getAuthenticationBuilder();
+        this.populator.populateAttributes(builder, DefaultAuthenticationTransaction.of(credentials));
         final Authentication auth = builder.build();
-
-        assertNull(auth.getAttributes().get(SamlAuthenticationMetaDataPopulator.ATTRIBUTE_AUTHENTICATION_METHOD));
+        assertNotNull(auth.getAttributes().get(SamlAuthenticationMetaDataPopulator.ATTRIBUTE_AUTHENTICATION_METHOD));
     }
 
     @Test
@@ -66,9 +58,8 @@ public class SamlAuthenticationMetaDataPopulatorTests {
 
         this.populator.setUserDefinedMappings(added);
 
-        final AuthenticationBuilder builder = newAuthenticationBuilder(
-            CoreAuthenticationTestUtils.getPrincipal());
-        this.populator.populateAttributes(builder, AuthenticationTransaction.wrap(credentials));
+        final AuthenticationBuilder builder = CoreAuthenticationTestUtils.getAuthenticationBuilder();
+        this.populator.populateAttributes(builder, DefaultAuthenticationTransaction.of(credentials));
         final Authentication auth = builder.build();
 
         assertEquals(
@@ -86,11 +77,4 @@ public class SamlAuthenticationMetaDataPopulatorTests {
         }
     }
 
-    private static AuthenticationBuilder newAuthenticationBuilder(final Principal principal) {
-        final CredentialMetaData meta = new BasicCredentialMetaData(new UsernamePasswordCredential());
-        final AuthenticationHandler handler = new SimpleTestUsernamePasswordAuthenticationHandler();
-        return new DefaultAuthenticationBuilder(principal)
-            .addCredential(meta)
-            .addSuccess("test", new DefaultHandlerResult(handler, meta));
-    }
 }

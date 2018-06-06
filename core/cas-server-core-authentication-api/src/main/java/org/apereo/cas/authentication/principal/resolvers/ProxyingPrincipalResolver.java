@@ -1,6 +1,9 @@
 package org.apereo.cas.authentication.principal.resolvers;
 
-import org.apache.commons.lang3.builder.ToStringBuilder;
+import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.authentication.AuthenticationHandler;
 import org.apereo.cas.authentication.Credential;
 import org.apereo.cas.authentication.principal.DefaultPrincipalFactory;
@@ -8,6 +11,8 @@ import org.apereo.cas.authentication.principal.Principal;
 import org.apereo.cas.authentication.principal.PrincipalFactory;
 import org.apereo.cas.authentication.principal.PrincipalResolver;
 import org.apereo.services.persondir.IPersonAttributeDao;
+
+import java.util.Optional;
 
 /**
  * Provides the most basic means of principal resolution by mapping
@@ -17,31 +22,22 @@ import org.apereo.services.persondir.IPersonAttributeDao;
  * @author Marvin S. Addison
  * @since 4.0.0
  */
+@Slf4j
+@ToString
+@AllArgsConstructor
+@RequiredArgsConstructor
 public class ProxyingPrincipalResolver implements PrincipalResolver {
 
-    private final PrincipalFactory principalFactory;
-
-    public ProxyingPrincipalResolver() {
-        this(new DefaultPrincipalFactory());
-    }
-
-    public ProxyingPrincipalResolver(final PrincipalFactory principalFactory) {
-        this.principalFactory = principalFactory;
-    }
+    private PrincipalFactory principalFactory = new DefaultPrincipalFactory();
 
     @Override
-    public Principal resolve(final Credential credential, final Principal currentPrincipal, final AuthenticationHandler handler) {
+    public Principal resolve(final Credential credential, final Optional<Principal> currentPrincipal, final Optional<AuthenticationHandler> handler) {
         return this.principalFactory.createPrincipal(credential.getId());
     }
 
     @Override
     public boolean supports(final Credential credential) {
         return credential.getId() != null;
-    }
-
-    @Override
-    public String toString() {
-        return new ToStringBuilder(this).toString();
     }
 
     @Override

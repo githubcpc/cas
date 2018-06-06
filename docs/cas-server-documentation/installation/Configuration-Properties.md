@@ -27,26 +27,35 @@ create attribute release policies, etc. CAS at runtime will auto-configure all r
 
 ## General
 
-A number of CAS configuration options equally apply to a number of modules and features. To understand and take note of those options, please [review this guide](Configuration-Properties-Common.html).
+A number of CAS configuration options equally apply to a number of modules and features. To understand and 
+take note of those options, please [review this guide](Configuration-Properties-Common.html).
+
+## Custom Settings
+
+The following settings could be used to extend CAS with arbitrary configuration keys and values:
+
+```properties
+# cas.custom.properties.[property-name]=[property-value]
+``` 
 
 ## Configuration Storage
 
 ### Standalone
 
-CAS by default will attempt to locate settings and properties inside a given directory indicated 
-under the setting name `cas.standalone.config` and otherwise falls back to using `/etc/cas/config`.
+CAS by default will attempt to locate settings and properties inside a given directory indicated
+under the setting name `cas.standalone.configurationDirectory` and otherwise falls back to using `/etc/cas/config`.
 
-There also exists a `cas.standalone.config.file` which can be used to directly feed a collection of properties
+There also exists a `cas.standalone.configurationFile` which can be used to directly feed a collection of properties
 to CAS in form of a file or classpath resource. This is specially useful in cases where a bare CAS server is deployed in the cloud without the extra ceremony of a configuration server or an external directory for that matter and the deployer wishes to avoid overriding embedded configuration files.
 
 ### Spring Cloud
 
 The following settings are to be loaded by the CAS configuration runtime, which bootstraps
 the entire CAS running context. They are to be put inside the `src/main/resources/bootstrap.properties`
-of the configuration server itself. See [this guide](Configuration-Server-Management.html) for more info. 
+of the configuration server itself. See [this guide](Configuration-Server-Management.html) for more info.
 
 The configuration server backed by Spring Cloud supports the following profiles.
- 
+
 ### Native
 
 Load settings from external properties/yaml configuration files.
@@ -143,19 +152,27 @@ Load settings from an Apache ZooKeeper instance.
 # spring.cloud.zookeeper.config.root=cas/config
 ```
 
-### DynamoDb
+### Amazon Secrets Manager
 
-Load settings from a DynamoDb instance.
+Common AWS settings for this feature are available [here](Configuration-Properties-Common.html#amazon-integration-settings)
+under the configuration key `cas.spring.cloud.aws.secretsManager`.
+
+### Amazon S3
+
+The following settings may be passed using strategies outlined [here](Configuration-Management.html#overview) in order for CAS to establish a connection,
+using the configuration key `cas.spring.cloud.aws.s3`.
 
 ```properties
-# cas.spring.cloud.dynamodb.credentialAccessKey=
-# cas.spring.cloud.dynamodb.credentialSecretKey=
-# cas.spring.cloud.dynamodb.endpoint=http://localhost:8000
-# cas.spring.cloud.dynamodb.localAddress=
-# cas.spring.cloud.dynamodb.endpoint=
-# cas.spring.cloud.dynamodb.region=
-# cas.spring.cloud.dynamodb.regionOverride=
+# ${configurationKey}.bucketName=cas-properties
 ```
+
+Common AWS settings for this feature are available [here](Configuration-Properties-Common.html#amazon-integration-settings)
+under the configuration key `cas.spring.cloud.aws.s3`.
+
+### DynamoDb
+
+Common AWS settings for this feature are available [here](Configuration-Properties-Common.html#amazon-integration-settings)
+under the configuration key `cas.spring.cloud.dynamodb`. 
 
 ### JDBC
 
@@ -173,10 +190,10 @@ secured, [please review this guide](Configuration-Properties-Security.html).
 ### Standalone
 
 ```properties
-# cas.standalone.config.security.alg=PBEWithMD5AndTripleDES
-# cas.standalone.config.security.provider=BC
-# cas.standalone.config.security.iterations=
-# cas.standalone.config.security.psw=
+# cas.standalone.configurationSecurity.alg=PBEWithMD5AndTripleDES
+# cas.standalone.configurationSecurity.provider=BC
+# cas.standalone.configurationSecurity.iterations=
+# cas.standalone.configurationSecurity.psw=
 ```
 
 The above settings may be passed to CAS using any of the [strategies outline here](Configuration-Management.html#overview),
@@ -337,7 +354,7 @@ Enable AJP connections for the embedded Tomcat container,
 
 The Tomcat SSLValve is a way to get a client certificate from an SSL proxy (e.g. HAProxy or BigIP F5)
 running in front of Tomcat via an HTTP header. If you enable this, make sure your proxy is ensuring
-that this header doesn't originate with the client (e.g. the browser).
+that this header does not originate with the client (e.g. the browser).
 
 ```properties
 # cas.server.sslValve.enabled=false
@@ -347,8 +364,8 @@ that this header doesn't originate with the client (e.g. the browser).
 # cas.server.sslValve.sslCipherUserKeySizeHeader=ssl_cipher_usekeysize
 ```
 
-Example HAProxy Configuration (snippet)
-Configure SSL frontend with cert optional, redirect to cas, if cert provided, put it on header
+Example HAProxy Configuration (snippet): Configure SSL frontend with cert optional, redirect to cas, if cert provided, put it on header.
+
 ```
 frontend web-vip
   bind 192.168.2.10:443 ssl crt /var/lib/haproxy/certs/www.example.com.pem ca-file /var/lib/haproxy/certs/ca.pem verify optional
@@ -382,12 +399,51 @@ for the embedded Tomcat container.
 # cas.server.extAccessLog.directory=
 ```
 
-#### Rewrite Valve Valve
+#### Rewrite Valve
 
 Enable the [rewrite valve](https://tomcat.apache.org/tomcat-8.0-doc/rewrite.html) for the embedded Tomcat container.
 
 ```properties
 # cas.server.rewriteValve.location=classpath://container/tomcat/rewrite.config
+```
+
+#### Basic Authentication
+
+Enable basic authentication for the embedded Apache Tomcat.
+
+```properties
+# cas.server.basicAuthn.enabled=true
+# cas.server.basicAuthn.securityRoles[0]=admin
+# cas.server.basicAuthn.authRoles[0]=admin
+# cas.server.basicAuthn.patterns[0]=/*
+```
+
+#### Session Clustering & Replication
+
+Enable session replication to replicate web application session deltas.
+
+```properties
+# cas.server.clustering.enabled=false
+# cas.server.clustering.clusterMembers=ip-address:port:index
+
+# cas.server.clustering.expireSessionsOnShutdown=false
+# cas.server.clustering.channelSendOptions=8
+
+# cas.server.clustering.receiverPort=4000
+# cas.server.clustering.receiverTimeout=5000
+# cas.server.clustering.receiverMaxThreads=6
+# cas.server.clustering.receiverAddress=auto
+# cas.server.clustering.receiverAutoBind=100
+
+# cas.server.clustering.membershipPort=45564
+# cas.server.clustering.membershipAddress=228.0.0.4
+# cas.server.clustering.membershipFrequency=500
+# cas.server.clustering.membershipDropTime=3000
+# cas.server.clustering.membershipRecoveryEnabled=true
+# cas.server.clustering.membershipLocalLoopbackDisabled=false
+# cas.server.clustering.membershipRecoveryCounter=10
+
+# cas.server.clustering.managerType=DELTA|BACKUP
 ```
 
 ## CAS Server
@@ -411,7 +467,7 @@ In order to skip this step and summarize, set the system property `-DCAS_BANNER_
 ### Update Check
 
 CAS may also be conditionally configured to report, as part of the banner, whether a newer CAS release is available for an upgrade.
-This check is off by default and may be enabled with a system property of `-DCAS_UPDATE_CHECK_ENABLED=true`.  
+This check is off by default and may be enabled with a system property of `-DCAS_UPDATE_CHECK_ENABLED=true`.
 
 ## Spring Boot Endpoints
 
@@ -422,7 +478,7 @@ To learn more about this topic, [please review this guide](Monitoring-Statistics
 
 ```properties
 # Globally control whether endpoints are enabled
-# or marked as sesitive to require authentication.
+# or marked as sensitive to require authentication.
 # endpoints.enabled=true
 # endpoints.sensitive=true
 
@@ -580,7 +636,7 @@ Enable LDAP authentication for Spring Security to secure endpoints. LDAP setting
 
 ## Web Application Session
 
-Control the CAS web application session behavior 
+Control the CAS web application session behavior
 as it's treated by the underlying servlet container engine.
 
 ```properties
@@ -596,19 +652,21 @@ Control how CAS should treat views and other UI elements.
 To learn more about this topic, [please review this guide](User-Interface-Customization-Views.html).
 
 ```properties
-spring.thymeleaf.encoding=UTF-8
+# spring.thymeleaf.encoding=UTF-8
 
 # Controls  whether views should be cached by CAS.
 # When turned on, ad-hoc chances to views are not automatically
 # picked up by CAS until a restart. Small incremental performance
 # improvements are to be expected.
-spring.thymeleaf.cache=true
+# spring.thymeleaf.cache=true
 
 # Instruct CAS to locate views at the below location.
 # This location can be externalized to a directory outside
 # the cas web application.
 # spring.thymeleaf.prefix=classpath:/templates/
 
+# Ensure CAS protocol v2 can behave like v3 when
+# validating service tickets, etc.
 # cas.view.cas2.v3ForwardCompatible=false
 
 # Indicate where core CAS-protocol related views should be found
@@ -618,14 +676,26 @@ spring.thymeleaf.cache=true
 # cas.view.cas2.proxy.success=protocol/2.0/casProxySuccessView
 # cas.view.cas2.proxy.failure=protocol/2.0/casProxyFailureView
 
-
 # cas.view.cas3.success=protocol/3.0/casServiceValidationSuccess
 # cas.view.cas3.failure=protocol/3.0/casServiceValidationFailure
+
+# Indicates how attributes should be rendered in the validation response
+# cas.view.cas3.attributeRendererType=DEFAULT|INLINE
 
 # Defines a default URL to which CAS may redirect if there is no service
 # provided in the authentication request.
 # cas.view.defaultRedirectUrl=https://www.github.com
+
+# CAS views may be located at the following paths outside
+# the web application context, in addition to prefix specified
+# above which is handled via Thymeleaf.
+# cas.view.templatePrefixes[0]=file:///etc/cas/templates
 ```
+
+### Restful Views
+
+Control the resolution of CAS views via REST. RESTful settings for this feature are 
+available [here](Configuration-Properties-Common.html#restful-integrations) under the configuration key `cas.view.rest`.
 
 ## Logging
 
@@ -758,7 +828,7 @@ import java.util.*
 
 def Map<String, List<Object>> run(final Object... args) {
     def uid = args[0]
-    def logger = args[1];
+    def logger = args[1]
     def casProperties = args[2]
     def casApplicationContext = args[3]
 
@@ -875,12 +945,13 @@ Retrieve attributes from a JDBC source. Database settings for this feature are a
 # cas.authn.attributeRepository.jdbc[0].columnMappings.columnAttrName3=columnAttrValue3
 
 # cas.authn.attributeRepository.jdbc[0].sql=SELECT * FROM table WHERE {0}
+# cas.authn.attributeRepository.jdbc[0].username=uid
 ```
 
 ### Grouper
 
 This option reads all the groups from [a Grouper instance](www.internet2.edu/grouper/software.html) for the given CAS principal and adopts them
-as CAS attributes under a `grouperGroups` multi-valued attribute. 
+as CAS attributes under a `grouperGroups` multi-valued attribute.
 To learn more about this topic, [please review this guide](../integration/Attribute-Resolution.html).
 
 ```properties
@@ -894,6 +965,15 @@ with the following configured properties:
 grouperClient.webService.url = http://192.168.99.100:32768/grouper-ws/servicesRest
 grouperClient.webService.login = banderson
 grouperClient.webService.password = password
+```
+
+### Couchbase
+
+This option will fetch attributes from a Couchbase database for a given CAS principal. To learn more about this topic, [please review this guide](Couchbase-Authentication.html). Database settings for this feature are available [here](Configuration-Properties-Common.html#couchbase-integration-settings) under the configuration key `cas.authn.attributeRepository.couchbase`.
+
+```properties
+# cas.authn.attributeRepository.couchbase.usernameAttribute=username
+# cas.authn.attributeRepository.couchbase.order=0
 ```
 
 ### Shibboleth Integrations
@@ -968,10 +1048,10 @@ would only be acceptable in a multi-factor authentication situation.
 ### Unique Principal
 
 Satisfied if and only if the requesting principal has not already authenticated with CAS.
-Otherwise the authentication event is blocked, preventing multiple logins. 
+Otherwise the authentication event is blocked, preventing multiple logins.
 
 <div class="alert alert-warning"><strong>Usage Warning</strong><p>Activating this policy is not without cost,
-as CAS needs to query the ticket registry and all tickets present to determine whether the current user has established a authentication session anywhere. This will surely add a performance burden to the deployment. Use with care.</p></div>
+as CAS needs to query the ticket registry and all tickets present to determine whether the current user has established an authentication session anywhere. This will surely add a performance burden to the deployment. Use with care.</p></div>
 
 ```properties
 # cas.authn.policy.uniquePrincipal.enabled=true
@@ -1099,6 +1179,10 @@ To learn more about this topic, [please review this guide](Surrogate-Authenticat
 # cas.authn.surrogate.separator=+
 ```
 
+Principal resolution and Person Directory settings for this feature 
+are available [here](Configuration-Properties-Common.html#person-directory-principal-resolution) 
+under the configuration key `cas.authn.surrogate.principal`.
+
 ### Static Surrogate Accounts
 
 ```properties
@@ -1125,7 +1209,7 @@ LDAP settings for this feature are available [here](Configuration-Properties-Com
 ### JDBC Surrogate Accounts
 
  Database settings for this feature are available [here](Configuration-Properties-Common.html#database-settings) under the configuration key `cas.authn.surrogate.jdbc`.
- 
+
 ```properties
 # cas.authn.surrogate.jdbc.surrogateSearchQuery=SELECT COUNT(*) FROM surrogate WHERE username=?
 # cas.authn.surrogate.jdbc.surrogateAccountQuery=SELECT surrogate_user AS surrogateAccount FROM surrogate WHERE username=?
@@ -1133,28 +1217,18 @@ LDAP settings for this feature are available [here](Configuration-Properties-Com
 
 ### REST Surrogate Accounts
 
-RESTful settings for this feature are available [here](Configuration-Properties-Common.html#restful-integrations) under the configuration key `cas.authn.surrogate.rest`.
+RESTful settings for this feature are available [here](Configuration-Properties-Common.html#restful-integrations) 
+under the configuration key `cas.authn.surrogate.rest`.
 
 ### Notifications
 
-```properties
-# cas.authn.surrogate.sms.from=
-# cas.authn.surrogate.sms.text=
-# cas.authn.surrogate.sms.attributeName=phone
-
-# cas.authn.surrogate.mail.from=
-# cas.authn.surrogate.mail.text=
-# cas.authn.surrogate.mail.subject=
-# cas.authn.surrogate.mail.cc=
-# cas.authn.surrogate.mail.bcc=
-# cas.authn.surrogate.mail.attributeName=mail
-
-```
+Email notifications settings for this feature are available [here](Configuration-Properties-Common.html#email-notifications) 
+under the configuration key `cas.authn.surrogate`. SMS notifications settings for this feature are 
+available [here](Configuration-Properties-Common.html#sms-notifications) under the configuration key `cas.authn.surrogate`.
 
 ## Risk-based Authentication
 
-Evaluate suspicious authentication requests and take action.
-To learn more about this topic, [please review this guide](Configuring-RiskBased-Authentication.html).
+Evaluate suspicious authentication requests and take action. To learn more about this topic, [please review this guide](Configuring-RiskBased-Authentication.html).
 
 ```properties
 # cas.authn.adaptive.risk.threshold=0.6
@@ -1173,33 +1247,45 @@ To learn more about this topic, [please review this guide](Configuring-RiskBased
 
 # cas.authn.adaptive.risk.response.mfaProvider=
 # cas.authn.adaptive.risk.response.riskyAuthenticationAttribute=triggeredRiskBasedAuthentication
-
-# cas.authn.adaptive.risk.response.mail.from=
-# cas.authn.adaptive.risk.response.mail.text=
-# cas.authn.adaptive.risk.response.mail.subject=
-# cas.authn.adaptive.risk.response.mail.cc=
-# cas.authn.adaptive.risk.response.mail.bcc=
-# cas.authn.adaptive.risk.response.mail.attributeName=mail
-
-# cas.authn.adaptive.risk.response.sms.from=
-# cas.authn.adaptive.risk.response.sms.text=
-# cas.authn.adaptive.risk.response.sms.attributeName=phone
 ```
+
+Email notifications settings for this feature are available [here](Configuration-Properties-Common.html#email-notifications) 
+under the configuration key `cas.authn.adaptive.risk.response`. SMS notifications settings for this feature are 
+available [here](Configuration-Properties-Common.html#sms-notifications) under the configuration key `cas.authn.adaptive.risk.response`.
+
+## Passwordless Authentication
+
+To learn more about this topic, [please review this guide](Passwordless-Authentication.html).
+
+### Account Stores
+
+```properties
+# cas.authn.passwordless.accounts.simple.casuser=cas@example.org
+# cas.authn.passwordless.accounts.groovy.location=file:/etc/cas/config/pwdless.groovy
+```
+
+RESTful settings for this feature are available [here](Configuration-Properties-Common.html#restful-integrations) 
+under the configuration key `cas.authn.passwordless.accounts.rest`.
+
+### Token Management
+
+```properties
+# cas.authn.passwordless.accounts.expireInSeconds=180
+```
+
+RESTful settings for this feature are available [here](Configuration-Properties-Common.html#restful-integrations) 
+under the configuration key `cas.authn.passwordless.tokens.rest`. The signing key and the encryption 
+key [are both JWKs](Configuration-Properties-Common.html#signing--encryption) of size `512` and `256`. 
+Signing & encryption settings for this feature are available [here](Configuration-Properties-Common.html#signing--encryption) under 
+the configuration key `cas.authn.passwordless.tokens.rest`.
+
+Email notifications settings for this feature are available [here](Configuration-Properties-Common.html#email-notifications) 
+under the configuration key `cas.authn.passwordless.tokens`. SMS notifications settings for this feature are 
+available [here](Configuration-Properties-Common.html#sms-notifications) under the configuration key `cas.authn.passwordless.tokens`.
 
 ## Email Submissions
 
-To learn more about this topic, [please review this guide](SMS-Email-Configuration.html).
-
-
-```properties
-# spring.mail.host=
-# spring.mail.port=
-# spring.mail.username=
-# spring.mail.password=
-# spring.mail.testConnection=true
-# spring.mail.properties.mail.smtp.auth=true
-# spring.mail.properties.mail.smtp.starttls.enable=true
-```
+Email notifications settings are available [here](Configuration-Properties-Common.html#email-notifications).
 
 ## SMS Messaging
 
@@ -1207,24 +1293,44 @@ To learn more about this topic, [please review this guide](SMS-Messaging-Configu
 
 ### Twilio
 
+Send text messaging using Twilio.
+
 ```properties
-# cas.twilio.accountId=
-# cas.twilio.token=
+# cas.smsProviders.twilio.accountId=
+# cas.smsProviders.twilio.token=
 ```
 
 ### TextMagic
 
+Send text messaging using TextMagic.
+
 ```properties
-# cas.textMagic.username=
-# cas.textMagic.token=
+# cas.smsProviders.textMagic.username=
+# cas.smsProviders.textMagic.token=
+# cas.smsProviders.textMagic.url=
 ```
 
 ### Clickatell
 
+Send text messaging using Clickatell.
+
 ```properties
-# cas.clickatell.serverUrl=https://platform.clickatell.com/messages
-# cas.clickatell.token=
+# cas.smsProviders.clickatell.serverUrl=https://platform.clickatell.com/messages
+# cas.smsProviders.clickatell.token=
 ```
+
+### Amazon SNS
+
+Send text messaging using Amazon SNS.
+
+```properties
+# cas.smsProviders.sns.senderId=
+# cas.smsProviders.sns.maxPrice=
+# cas.smsProviders.sns.smsType=Transactional
+```
+
+AWS settings for this feature are available [here](Configuration-Properties-Common.html#amazon-integration-settings) 
+under the configuration key `cas.smsProviders.sns`.
 
 ## GeoTracking
 
@@ -1261,6 +1367,7 @@ To learn more about this topic, [please review this guide](Cassandra-Authenticat
 # cas.authn.cassandra.tableName=
 # cas.authn.cassandra.username=
 # cas.authn.cassandra.password=
+# cas.authn.cassandra.query=SELECT * FROM %s WHERE %s = ? ALLOW FILTERING
 
 # cas.authn.cassandra.protocolVersion=V1|V2|V3|V4
 # cas.authn.cassandra.keyspace=
@@ -1295,11 +1402,11 @@ To learn more about this topic, [please review this guide](Digest-Authentication
 
 ## Radius Authentication
 
-To learn more about this topic, [please review this guide](RADIUS-Authentication.html). 
+To learn more about this topic, [please review this guide](RADIUS-Authentication.html).
 
-Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.radius`. 
+Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.radius`.
 
-Password encoding  settings for this feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.radius`. 
+Password encoding  settings for this feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.radius`.
 
 Radius  settings for this feature are available [here](Configuration-Properties-Common.html#radius-configuration) under the configuration key `cas.authn.radius`.
 
@@ -1309,9 +1416,9 @@ Radius  settings for this feature are available [here](Configuration-Properties-
 
 ## File (Whitelist) Authentication
 
-To learn more about this topic, [please review this guide](Whitelist-Authentication.html). 
+To learn more about this topic, [please review this guide](Whitelist-Authentication.html).
 
-Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.file`. 
+Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.file`.
 
 Password encoding  settings for this feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.file`.
 
@@ -1321,11 +1428,26 @@ Password encoding  settings for this feature are available [here](Configuration-
 # cas.authn.file.name=
 ```
 
+## JSON (Whitelist) Authentication
+
+To learn more about this topic, [please review this guide](Whitelist-Authentication.html).
+
+Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.json`.
+
+Password encoding  settings for this feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.json`.
+
+Password policy settings for this feature are available [here](Configuration-Properties-Common.html#password-policy-settings) under the configuration key `cas.authn.json.passwordPolicy`.
+
+```properties
+# cas.authn.json.location=file:///path/to/users/file.json
+# cas.authn.json.name=
+```
+
 ## Reject Users (Blacklist) Authentication
 
-To learn more about this topic, [please review this guide](Blacklist-Authentication.html). 
+To learn more about this topic, [please review this guide](Blacklist-Authentication.html).
 
-Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.reject`. 
+Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.reject`.
 
 Password encoding  settings for this feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.reject`.
 
@@ -1341,11 +1463,11 @@ To learn more about this topic, [please review this guide](Database-Authenticati
 ### Query Database Authentication
 
 Authenticates a user by comparing the user password (which can be encoded with a password encoder)
-against the password on record determined by a configurable database query.  
+against the password on record determined by a configurable database query.
 
-Database settings for this feature are available [here](Configuration-Properties-Common.html#database-settings) under the configuration key `cas.authn.jdbc.query[0]`. 
+Database settings for this feature are available [here](Configuration-Properties-Common.html#database-settings) under the configuration key `cas.authn.jdbc.query[0]`.
 
-Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.jdbc.query[0]`. 
+Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.jdbc.query[0]`.
 
 Password encoding  settings for this feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.jdbc.query[0]`.
 
@@ -1363,11 +1485,11 @@ Password encoding  settings for this feature are available [here](Configuration-
 
 ### Search Database Authentication
 
-Searches for a user record by querying against a username and password; the user is authenticated if at least one result is found. 
+Searches for a user record by querying against a username and password; the user is authenticated if at least one result is found.
 
-Database settings for this feature are available [here](Configuration-Properties-Common.html#database-settings) under the configuration key `cas.authn.jdbc.search[0]`. 
+Database settings for this feature are available [here](Configuration-Properties-Common.html#database-settings) under the configuration key `cas.authn.jdbc.search[0]`.
 
-Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.jdbc.search[0]`. 
+Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.jdbc.search[0]`.
 
 Password encoding  settings for this feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.jdbc.search[0]`.
 
@@ -1382,11 +1504,11 @@ Password encoding  settings for this feature are available [here](Configuration-
 
 ### Bind Database Authentication
 
-Authenticates a user by attempting to create a database connection using the username and (hashed) password. 
+Authenticates a user by attempting to create a database connection using the username and (hashed) password.
 
-Database settings for this feature are available [here](Configuration-Properties-Common.html#database-settings) under the configuration key `cas.authn.jdbc.bind[0]`. 
+Database settings for this feature are available [here](Configuration-Properties-Common.html#database-settings) under the configuration key `cas.authn.jdbc.bind[0]`.
 
-Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.jdbc.bind[0]`. 
+Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.jdbc.bind[0]`.
 
 Password encoding  settings for this feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.jdbc.bind[0]`.
 
@@ -1406,9 +1528,9 @@ This password encoding method combines the private Salt and the public salt whic
 If multiple iterations are used, the bytecode hash of the first iteration is rehashed without the salt values. The final hash
 is converted to hex before comparing it to the database value.
 
-Database settings for this feature are available [here](Configuration-Properties-Common.html#database-settings) under the configuration key `cas.authn.jdbc.encode[0]`. 
+Database settings for this feature are available [here](Configuration-Properties-Common.html#database-settings) under the configuration key `cas.authn.jdbc.encode[0]`.
 
-Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.jdbc.encode[0]`. 
+Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.jdbc.encode[0]`.
 
 Password encoding  settings for this feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.jdbc.encode[0]`.
 
@@ -1472,73 +1594,15 @@ To learn more about this topic, [please review this guide](LDAP-Authentication.h
 # cas.authn.ldap[0].credentialCriteria=
 ```
 
-### LDAP Password Encoding & Principal Transformation
-
-Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.ldap[0]`. 
-
-Password encoding  settings for this feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.ldap[0]`.
-
-
 ### LDAP Password Policy
 
-```properties
-# cas.authn.ldap[0].passwordPolicy.type=GENERIC|AD|FreeIPA|EDirectory
+LDAP password policy settings for this feature are available [here](Configuration-Properties-Common.html#password-policy-settings) under the configuration key `cas.authn.ldap[0].passwordPolicy`.
 
-# cas.authn.ldap[0].passwordPolicy.enabled=true
-# cas.authn.ldap[0].passwordPolicy.policyAttributes.accountLocked=javax.security.auth.login.AccountLockedException
-# cas.authn.ldap[0].passwordPolicy.loginFailures=5
-# cas.authn.ldap[0].passwordPolicy.warningAttributeValue=
-# cas.authn.ldap[0].passwordPolicy.warningAttributeName=
-# cas.authn.ldap[0].passwordPolicy.displayWarningOnMatch=true
-# cas.authn.ldap[0].passwordPolicy.warnAll=true
-# cas.authn.ldap[0].passwordPolicy.warningDays=30
+### LDAP Password Encoding & Principal Transformation
 
-# An implementation of `org.ldaptive.auth.AuthenticationResponseHandler`
-# cas.authn.ldap[0].passwordPolicy.customPolicyClass=com.example.MyAuthenticationResponseHandler
+Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.ldap[0]`.
 
-# cas.authn.ldap[0].passwordPolicy.strategy=DEFAULT|GROOVY|REJECT_RESULT_CODE
-# cas.authn.ldap[0].passwordPolicy.groovy.location=file:/etc/cas/config/password-policy.groovy
-```
-
-#### Password Policy Strategies
-
-Password policy strategy types are outlined below. The strategy evaluates the authentication response received from LDAP and is allowed to review it upfront in order to further examine whether account state, messages and warnings is eligible for further investigation.
-
-| Option        | Description
-|---------------|-----------------------------------------------------------------------------
-| `DEFAULT`     | Accepts the auhentication response as is, and processes account state, if any.
-| `GROOVY`      | Examine the authentication response as part of a Groovy script dynamically. The responsibility of handling account state changes and warnings is entirely delegated to the script.
-| `REJECT_RESULT_CODE`  | An extension of the `DEFAULT` where account state is processed only if the result code of the authentication response is not blacklisted in the configuration. By default `INVALID_CREDENTIALS(49)` prevents CAS from handling account states.
-
-If the password policy strategy is to be handed off to a Groovy script, the outline of the script may be as follows:
-
-```groovy
-import java.util.*
-import org.ldaptive.auth.*
-import org.apereo.cas.*
-import org.apereo.cas.authentication.*
-import org.apereo.cas.authentication.support.*
-
-def List<MessageDescriptor> run(final Object... args) {
-    def response = args[0]
-    def configuration = args[1];
-    def logger = args[2]
-
-    logger.info("Handling password policy [{}] via ${configuration.getAccountStateHandler()}", response)
-
-    def accountStateHandler = configuration.getAccountStateHandler()
-    return accountStateHandler.handle(response, configuration)
-}
-```
-
-The parameters passed are as follows:
-
-| Parameter             | Description
-|-----------------------|-----------------------------------------------------------------------------------
-| `response`            | The LDAP authentication response of type `org.ldaptive.auth.AuthenticationResponse`
-| `configuration`       | The LDAP password policy configuration carrying the account state handler defined.
-| `logger`              | The object responsible for issuing log messages such as `logger.info(...)`.
-
+Password encoding  settings for this feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.ldap[0]`.
 
 ## REST Authentication
 
@@ -1565,7 +1629,8 @@ To learn more about this topic, [please review this guide](../integration/Google
 
 Allow CAS to become an OpenID authentication provider. To learn more about this topic, [please review this guide](../protocol/OpenID-Protocol.html).
 
-Principal resolution and Person Directory settings for this feature are available [here](Configuration-Properties-Common.html#person-directory-principal-resolution) under the configuration key `cas.authn.openid.principal`.
+Principal resolution and Person Directory settings for this feature 
+are available [here](Configuration-Properties-Common.html#person-directory-principal-resolution) under the configuration key `cas.authn.openid.principal`.
 
 ```properties
 # cas.authn.openid.enforceRpId=false
@@ -1580,31 +1645,33 @@ Principal resolution and Person Directory settings for this feature are availabl
 
 ```properties
 # cas.authn.spnego.kerberosConf=
+# cas.authn.spnego.loginConf=
+# cas.authn.spnego.kerberosRealm=EXAMPLE.COM
+
+# cas.authn.spnego.jcifsUsername=
+# cas.authn.spnego.jcifsDomainController=
+# cas.authn.spnego.jcifsDomain=
+# cas.authn.spnego.jcifsServicePassword=
+# cas.authn.spnego.jcifsPassword=
+
 # cas.authn.spnego.mixedModeAuthentication=false
 # cas.authn.spnego.cachePolicy=600
 # cas.authn.spnego.timeout=300000
 # cas.authn.spnego.jcifsServicePrincipal=HTTP/cas.example.com@EXAMPLE.COM
 # cas.authn.spnego.jcifsNetbiosWins=
-# cas.authn.spnego.loginConf=
 # cas.authn.spnego.ntlmAllowed=true
 # cas.authn.spnego.hostNamePatternString=.+
-# cas.authn.spnego.jcifsUsername=
 # cas.authn.spnego.useSubjectCredsOnly=false
 # cas.authn.spnego.supportedBrowsers=MSIE,Trident,Firefox,AppleWebKit
-# cas.authn.spnego.jcifsDomainController=
 # cas.authn.spnego.dnsTimeout=2000
 # cas.authn.spnego.hostNameClientActionStrategy=hostnameSpnegoClientAction
 # cas.authn.spnego.kerberosKdc=172.10.1.10
 # cas.authn.spnego.alternativeRemoteHostAttribute=alternateRemoteHeader
-# cas.authn.spnego.jcifsDomain=
 # cas.authn.spnego.ipsToCheckPattern=127.+
 # cas.authn.spnego.kerberosDebug=true
 # cas.authn.spnego.send401OnAuthenticationFailure=true
-# cas.authn.spnego.kerberosRealm=EXAMPLE.COM
 # cas.authn.spnego.ntlm=false
 # cas.authn.spnego.principalWithDomainName=false
-# cas.authn.spnego.jcifsServicePassword=
-# cas.authn.spnego.jcifsPassword=
 # cas.authn.spnego.spnegoAttributeName=distinguishedName
 # cas.authn.spnego.name=
 ```
@@ -1631,8 +1698,19 @@ To learn more about this topic, [please review this guide](JAAS-Authentication.h
 # cas.authn.jaas[0].kerberosKdcSystemProperty=
 # cas.authn.jaas[0].kerberosRealmSystemProperty=
 # cas.authn.jaas[0].name=
+# cas.authn.jaas[0].order=
 # cas.authn.jaas[0].credentialCriteria=
+# cas.authn.jaas[0].loginConfigType=JavaLoginConfig
+# cas.authn.jaas[0].loginConfigurationFile=/path/to/jaas.conf
 ```
+
+Principal resolution and Person Directory settings for this feature 
+are available [here](Configuration-Properties-Common.html#person-directory-principal-resolution) 
+under the configuration key `cas.authn.jaas[0].principal`.
+
+Password policy settings for this feature are available [here](Configuration-Properties-Common.html#password-policy-settings) 
+under the configuration key `cas.authn.jaas[0].passwordPolicy`.
+
 
 ## GUA Authentication
 
@@ -1662,22 +1740,23 @@ To learn more about this topic, [please review this guide](JWT-Authentication.ht
 
 ### JWT Tickets
 
-Allow CAS tickets through various protocol channels to be created as JWTs. See [this guide](Configure-ServiceTicket-JWT.html) or [this guide](../protocol/REST-Protocol.html) for more info.
+Allow CAS tickets through various protocol channels to be created as JWTs. See [this guide](Configure-ServiceTicket-JWT.html) 
+or [this guide](../protocol/REST-Protocol.html) for more info.
 
 ```properties
-# Turn encryption on/off  for tickets
 # cas.authn.token.crypto.encryptionEnabled=true
+# cas.authn.token.crypto.signingEnabled=true
 ```
 
 The signing key and the encryption key [are both JWKs](Configuration-Properties-Common.html#signing--encryption) of size `512` and `256`. Signing & encryption settings for this feature are available [here](Configuration-Properties-Common.html#signing--encryption) under the configuration key `cas.authn.token`.
 
 ## Couchbase Authentication
 
-To learn more about this topic, [please review this guide](Couchbase-Authentication.html). 
+To learn more about this topic, [please review this guide](Couchbase-Authentication.html).
 
 Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.couchbase`.
 
- Password encoding  settings for this feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.couchbase`. 
+ Password encoding  settings for this feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.couchbase`.
 
 Database settings for this feature are available [here](Configuration-Properties-Common.html#couchbase-integration-settings) under the configuration key `cas.authn.couchbase`.
 
@@ -1691,21 +1770,15 @@ Database settings for this feature are available [here](Configuration-Properties
 
 ## Amazon Cloud Directory Authentication
 
-To learn more about this topic, [please review this guide](AWS-CloudDirectory-Authentication.html). 
+To learn more about this topic, [please review this guide](AWS-CloudDirectory-Authentication.html).
 
-Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.cloudDirectory`. 
-
+Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.cloudDirectory`.
 Password encoding  settings for this feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.cloudDirectory`.
 
+AWS settings for this feature are available [here](Configuration-Properties-Common.html#amazon-integration-settings) 
+under the configuration key `cas.authn.cloudDirectory`.
+
 ```properties
-# cas.authn.cloudDirectory.credentialAccessKey=
-# cas.authn.cloudDirectory.credentialSecretKey=
-
-# cas.authn.cloudDirectory.region=
-
-# cas.authn.cloudDirectory.profileName=
-# cas.authn.cloudDirectory.profilePath=
-
 # cas.authn.cloudDirectory.directoryArn=
 # cas.authn.cloudDirectory.schemaArn=
 # cas.authn.cloudDirectory.facetName=
@@ -1735,7 +1808,7 @@ use <strong>casuser</strong> and <strong>Mellon</strong> as the username and pas
 configured via the static authentication handler, and <strong>MUST</strong> be removed from the configuration
 prior to production rollouts.</p></div>
 
-Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.accept`. 
+Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.accept`.
 
 Password encoding  settings for this feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.accept`.
 
@@ -1753,7 +1826,7 @@ To learn more about this topic, [please review this guide](X509-Authentication.h
 
 X.509 principal resolution can act on the following principal types:
 
-| Type                    | Description                            
+| Type                    | Description
 |-------------------------|----------------------------------------------------------------------
 | `SERIAL_NO`             | Resolve the principal by the serial number with a configurable <strong>radix</strong>, ranging from 2 to 36. If <code>radix</code> is <code>16</code>, then the serial number could be filled with leading zeros to even the number of digits.
 | `SERIAL_NO_DN`          | Resolve the principal by serial number and issuer dn.
@@ -1832,8 +1905,30 @@ To fetch CRLs, the following options are available:
 # cas.authn.x509.serialNumberPrefix=SERIALNUMBER=
 # cas.authn.x509.refreshIntervalSeconds=3600
 # cas.authn.x509.maxPathLengthAllowUnspecified=false
+```
 
-# cas.authn.x509.principalType=SERIAL_NO|SERIAL_NO_DN|SUBJECT|SUBJECT_ALT_NAME|SUBJECT_DN
+### X509 Certificate Extraction
+
+These settings can be used to turn on and configure CAS to
+extract an X509 certificate from a base64 encoded certificate
+on a HTTP request header (placed there by a proxy in front of CAS).
+If this is set to true, it is important that the proxy cannot
+be bypassed by users and that the proxy ensures the header
+never originates from the browser.
+
+```properties
+cas.authn.x509.extractCert=false
+cas.authn.x509.sslHeaderName=ssl_client_cert
+```
+
+The specific parsing logic for the certificate is compatible
+with the Tomcat SSLValve which can work with headers set by
+Apache HTTPD, Nginx, Haproxy, BigIP F5, etc.
+
+### X509 Principal Resolution
+
+```properties
+cas.authn.x509.principalType=SERIAL_NO|SERIAL_NO_DN|SUBJECT|SUBJECT_ALT_NAME|SUBJECT_DN
 ```
 
 Principal resolution and Person Directory settings for this feature are available [here](Configuration-Properties-Common.html#person-directory-principal-resolution) under the configuration key `cas.authn.x509.principal`.
@@ -1842,11 +1937,25 @@ Principal resolution and Person Directory settings for this feature are availabl
 
 LDAP settings for this feature are available [here](Configuration-Properties-Common.html#ldap-connection-settings) under the configuration key `cas.authn.x509.ldap`.
 
+## Syncope Authentication
+
+To learn more about this topic, [please review this guide](Syncope-Authentication.html).
+
+Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.syncope`.
+
+Password encoding  settings for this feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.syncope`.
+
+```properties
+# cas.authn.syncope.domain=Master
+# cas.authn.syncope.url=https://idm.instance.org/syncope
+# cas.authn.syncope.name=
+```
+
 ## Shiro Authentication
 
-To learn more about this topic, [please review this guide](Shiro-Authentication.html). 
+To learn more about this topic, [please review this guide](Shiro-Authentication.html).
 
-Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.shiro`. 
+Principal transformation settings for this feature are available [here](Configuration-Properties-Common.html#authentication-principal-transformation) under the configuration key `cas.authn.shiro`.
 
 Password encoding  settings for this feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.shiro`.
 
@@ -1865,19 +1974,6 @@ To learn more about this topic, [please review this guide](Trusted-Authenticatio
 # cas.authn.trusted.name=
 
 # cas.authn.trusted.remotePrincipalHeader=
-```
-
-## Azure Active Directory Authentication
-
-To learn more about this topic, [please review this guide](../integration/Azure-ActiveDirectory-Integration.html).
-
-```properties
-# cas.authn.azureAd.name=
-# cas.authn.azureAd.instance=https://login.microsoftonline.com/
-# cas.authn.azureAd.extraQueryParameters=nux=1
-# cas.authn.azureAd.tenant=
-# cas.authn.azureAd.clientId=
-# cas.authn.azureAd.clientSecret=
 ```
 
 ## WS-Fed Delegated Authentication
@@ -1915,6 +2011,11 @@ strategies when collecting principal attributes:
 # cas.authn.wsfed[0].encryptionCertificate=classpath:certificate.crt
 # cas.authn.wsfed[0].encryptionPrivateKeyPassword=NONE
 ```
+
+### Signing & Encryption
+
+The signing and encryption keys [are both JWKs](Configuration-Properties-Common.html#signing--encryption) of size `512` and `256`.
+The encryption algorithm is set to `AES_128_CBC_HMAC_SHA_256`. Signing & encryption settings for this feature are available [here](Configuration-Properties-Common.html#signing--encryption) under `cas.authn.wsfed[0].cookie`.
 
 ## Multifactor Authentication
 
@@ -1980,32 +2081,50 @@ To learn more about this topic, [please review this guide](Multifactor-TrustedDe
 # cas.authn.mfa.trusted.timeUnit=SECONDS|MINUTES|HOURS|DAYS
 ```
 
-### Signing & Encryption
+#### Signing & Encryption
 
 The signing and encryption keys [are both JWKs](Configuration-Properties-Common.html#signing--encryption) of size `512` and `256`.
 The encryption algorithm is set to `AES_128_CBC_HMAC_SHA_256`. Signing & encryption settings for this feature are available [here](Configuration-Properties-Common.html#signing--encryption) under the configuration key `cas.authn.mfa.trusted`.
 
-### JSON Storage
+#### JSON Storage
 
 ```properties
 # cas.authn.mfa.trusted.json.location=file:/etc/cas/config/trusted-dev.json
 ```
 
-### JDBC Storage
+#### JDBC Storage
 
 Database settings for this feature are available [here](Configuration-Properties-Common.html#database-settings) under the configuration key `cas.authn.mfa.trusted.jpa`.
 
-### MongoDb Storage
+#### MongoDb Storage
 
- Configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.authn.mfa.trusted`. 
- 
-### REST Storage
+ Configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.authn.mfa.trusted`.
+
+#### REST Storage
 
 ```properties
 # cas.authn.mfa.trusted.rest.endpoint=https://api.example.org/trustedBrowser
 ```
 
-### Cleaner
+#### Trusted Device Fingerprint
+
+```properties
+# cas.authn.mfa.trusted.deviceFingerprint.componentSeparator=@
+# cas.authn.mfa.trusted.deviceFingerprint.cookie.enabled=true
+# cas.authn.mfa.trusted.deviceFingerprint.cookie.order=1
+# cas.authn.mfa.trusted.deviceFingerprint.clientIp.enabled=true
+# cas.authn.mfa.trusted.deviceFingerprint.clientIp.order=2
+# cas.authn.mfa.trusted.deviceFingerprint.userAgent.enabled=false
+# cas.authn.mfa.trusted.deviceFingerprint.userAgent.order=3
+```
+
+The device fingerprint cookie component can be configured with the common cookie properties found [here](Configuration-Properties-Common.html#cookie-properties) under the configuration key `cas.authn.mfa.trusted.deviceFingerprint.cookie`.
+The default cookie name is set to `MFATRUSTED` and the default maxAge is set to `2592000`.
+
+The device fingerprint cookie component supports signing & encryption. The signing and encryption keys [are both JWKs](Configuration-Properties-Common.html#signing--encryption) of size `512` and `256`.
+The encryption algorithm is set to `AES_128_CBC_HMAC_SHA_256`. Signing & encryption settings for this feature are available [here](Configuration-Properties-Common.html#signing--encryption) under the configuration key `cas.authn.mfa.trusted.deviceFingerprint.cookie`.
+
+#### Cleaner
 
 A cleaner process is scheduled to run in the background to clean up expired and stale tickets.
 This section controls how that process should behave.
@@ -2021,10 +2140,11 @@ This section controls how that process should behave.
 To learn more about this topic, [please review this guide](GoogleAuthenticator-Authentication.html).
 
 ```properties
-# cas.authn.mfa.gauth.windowSize=3
 # cas.authn.mfa.gauth.issuer=
-# cas.authn.mfa.gauth.codeDigits=6
 # cas.authn.mfa.gauth.label=
+
+# cas.authn.mfa.gauth.windowSize=3
+# cas.authn.mfa.gauth.codeDigits=6
 # cas.authn.mfa.gauth.timeStepSize=30
 # cas.authn.mfa.gauth.rank=0
 # cas.authn.mfa.gauth.trustedDeviceEnabled=false
@@ -2035,7 +2155,14 @@ To learn more about this topic, [please review this guide](GoogleAuthenticator-A
 # cas.authn.mfa.gauth.cleaner.schedule.repeatInterval=60000
 ```
 
-Multifacor authentication bypass settings for this provider are available [here](Configuration-Properties-Common.html#multifactor-authentication-bypass) under the configuration key `cas.authn.mfa.gauth`.
+Multifactor authentication bypass settings for this provider are available [here](Configuration-Properties-Common.html#multifactor-authentication-bypass)
+under the configuration key `cas.authn.mfa.gauth`.
+
+#### Signing & Encryption
+
+The signing and encryption keys [are both JWKs](Configuration-Properties-Common.html#signing--encryption) of size `512` and `256`.
+The encryption algorithm is set to `AES_128_CBC_HMAC_SHA_256`.  Signing & encryption settings for this feature are
+available [here](Configuration-Properties-Common.html#signing--encryption) under the configuration key `cas.authn.mfa.gauth`.
 
 #### Google Authenticator JSON
 
@@ -2052,7 +2179,7 @@ Multifacor authentication bypass settings for this provider are available [here]
 #### Google Authenticator MongoDb
 
  Configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.authn.mfa.gauth`.  The following settings are additionally available for this feature:
- 
+
 ```properties
 # cas.authn.mfa.gauth.mongo.tokenCollection=MongoDbGoogleAuthenticatorTokenRepository
 ```
@@ -2074,7 +2201,7 @@ To learn more about this topic, [please review this guide](YubiKey-Authenticatio
 # cas.authn.mfa.yubikey.name=
 ```
 
-Multifacor authentication bypass settings for this provider are available [here](Configuration-Properties-Common.html#multifactor-authentication-bypass) under the configuration key `cas.authn.mfa.yubikey`.
+Multifactor authentication bypass settings for this provider are available [here](Configuration-Properties-Common.html#multifactor-authentication-bypass) under the configuration key `cas.authn.mfa.yubikey`.
 
 #### YubiKey JSON Device Store
 
@@ -2089,6 +2216,14 @@ Multifacor authentication bypass settings for this provider are available [here]
 # cas.authn.mfa.yubikey.allowedDevices.uid2=yubikeyPublicId2
 ```
 
+#### YubiKey Registration Records Encryption and Signing
+
+```properties
+# cas.authn.mfa.yubikey.crypto.enabled=true
+```
+
+The signing key and the encryption key [are both JWKs](Configuration-Properties-Common.html#signing--encryption) of size `512` and `256`. Signing & encryption settings for this feature are available [here](Configuration-Properties-Common.html#signing--encryption) under the configuration key `cas.authn.mfa.yubikey`.
+
 ### YubiKey JPA Device Store
 
 Database settings for this feature are available [here](Configuration-Properties-Common.html#database-settings) under the configuration key `cas.authn.mfa.gauth.yubikey`.
@@ -2096,7 +2231,7 @@ Database settings for this feature are available [here](Configuration-Properties
 ### YubiKey MongoDb Device Store
 
  Configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.authn.mfa.yubikey`.
- 
+
 ### Radius OTP
 
 To learn more about this topic, [please review this guide](RADIUS-Authentication.html).
@@ -2109,7 +2244,7 @@ To learn more about this topic, [please review this guide](RADIUS-Authentication
 
 Radius  settings for this feature are available [here](Configuration-Properties-Common.html#radius-configuration) under the configuration key `cas.authn.mfa.radius`.
 
-Multifacor authentication bypass settings for this provider are available [here](Configuration-Properties-Common.html#multifactor-authentication-bypass) under the configuration key `cas.authn.mfa.radius`.
+Multifactor authentication bypass settings for this provider are available [here](Configuration-Properties-Common.html#multifactor-authentication-bypass) under the configuration key `cas.authn.mfa.radius`.
 
 ### DuoSecurity
 
@@ -2135,7 +2270,7 @@ import os, hashlib
 print hashlib.sha1(os.urandom(32)).hexdigest()
 ```
 
-Multifacor authentication bypass settings for this provider are available [here](Configuration-Properties-Common.html#multifactor-authentication-bypass) under the configuration key `cas.authn.mfa.duo[0]`.
+Multifactor authentication bypass settings for this provider are available [here](Configuration-Properties-Common.html#multifactor-authentication-bypass) under the configuration key `cas.authn.mfa.duo[0]`.
 
 ### FIDO U2F
 
@@ -2151,7 +2286,11 @@ To learn more about this topic, [please review this guide](FIDO-U2F-Authenticati
 # cas.authn.mfa.u2f.expireDevicesTimeUnit=DAYS
 ```
 
-Multifacor authentication bypass settings for this provider are available [here](Configuration-Properties-Common.html#multifactor-authentication-bypass) under the configuration key `cas.authn.mfa.u2f`.
+Multifactor authentication bypass settings for this provider are
+available [here](Configuration-Properties-Common.html#multifactor-authentication-bypass) under the configuration key `cas.authn.mfa.u2f`.
+The signing key and the encryption key [are both JWKs](Configuration-Properties-Common.html#signing--encryption) of size `512` and `256`.
+Signing & encryption settings for this feature are available [here](Configuration-Properties-Common.html#signing--encryption)
+under the configuration key `cas.authn.mfa.u2f`.
 
 ### FIDO U2F JSON
 
@@ -2169,8 +2308,8 @@ Multifacor authentication bypass settings for this provider are available [here]
 
 ### FIDO U2F MongoDb
 
- Configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.authn.mfa.u2f`.
- 
+Common configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.authn.mfa.u2f`.
+
 ### FIDO U2F JPA
 
 Database settings for this feature are available [here](Configuration-Properties-Common.html#database-settings) under the configuration key `cas.authn.mfa.u2f.jpa`.
@@ -2198,7 +2337,7 @@ To learn more about this topic, [please review this guide](SwivelSecure-Authenti
 # cas.authn.mfa.swivel.name=
 ```
 
-Multifacor authentication bypass settings for this provider are available [here](Configuration-Properties-Common.html#multifactor-authentication-bypass) under the configuration key `cas.authn.mfa.swivel`.
+Multifactor authentication bypass settings for this provider are available [here](Configuration-Properties-Common.html#multifactor-authentication-bypass) under the configuration key `cas.authn.mfa.swivel`.
 
 ### Microsoft Azure
 
@@ -2214,7 +2353,7 @@ To learn more about this topic, [please review this guide](MicrosoftAzure-Authen
 # cas.authn.mfa.azure.allowInternationalCalls=false
 ```
 
-Multifacor authentication bypass settings for this provider are available [here](Configuration-Properties-Common.html#multifactor-authentication-bypass) under the configuration key `cas.authn.mfa.azure`.
+Multifactor authentication bypass settings for this provider are available [here](Configuration-Properties-Common.html#multifactor-authentication-bypass) under the configuration key `cas.authn.mfa.azure`.
 
 ### Authy
 
@@ -2231,7 +2370,7 @@ To learn more about this topic, [please review this guide](AuthyAuthenticator-Au
 # cas.authn.mfa.authy.name=
 ```
 
-Multifacor authentication bypass settings for this provider are available [here](Configuration-Properties-Common.html#multifactor-authentication-bypass) under the configuration key `cas.authn.mfa.authy`.
+Multifactor authentication bypass settings for this provider are available [here](Configuration-Properties-Common.html#multifactor-authentication-bypass) under the configuration key `cas.authn.mfa.authy`.
 
 ## SAML Core
 
@@ -2291,12 +2430,28 @@ A given attribute that is to be encoded in the final SAML response may contain a
 
 #### SAML Metadata JPA
 
-Database settings for this feature are available [here](Configuration-Properties-Common.html#database-settings) under the configuration key `cas.authn.samlIdp.metadata.jpa`.
+Database settings for this feature are available [here](Configuration-Properties-Common.html#database-settings) 
+under the configuration key `cas.authn.samlIdp.metadata.jpa`.
 
 #### SAML Metadata MongoDb
 
- Configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.authn.samlIdp.metadata`.
+ Common configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) 
+ under the configuration key `cas.authn.samlIdp.metadata`.
  
+ #### SAML Metadata REST
+ 
+RESTful settings for this feature are available [here](Configuration-Properties-Common.html#restful-integrations) 
+under the configuration key `cas.authn.samlIdp.metadata.rest`.
+
+#### SAML Metadata Amazon S3
+ 
+Common AWS settings for this feature are available [here](Configuration-Properties-Common.html#amazon-integration-settings)
+under the configuration key `cas.authn.samlIdp.metadata.amazonS3`.
+
+```properties
+# cas.authn.samlIdp.metadata.amazonS3.bucketName=
+```
+
 ### SAML Logout
 
 ```properties
@@ -2325,7 +2480,6 @@ Database settings for this feature are available [here](Configuration-Properties
 # cas.authn.samlIdp.response.defaultAttributeNameFormat=uri
 # cas.authn.samlIdp.response.signError=false
 # cas.authn.samlIdp.response.signingCredentialType=X509|BASIC
-# cas.authn.samlIdp.response.useAttributeFriendlyName=true
 # cas.authn.samlIdp.response.attributeNameFormats=attributeName->basic|uri|unspecified|custom-format-etc,...
 ```
 
@@ -2340,48 +2494,55 @@ Configuration settings for all SAML2 service providers are [available here](Conf
 
 | Service Provider                       | Configuration Key | Attributes
 |---------------------------|----------------------------------------------------------
-| Gitlab               | `cas.samlSp.gitlab` | `last_name`,`first_name`,`name`
+| Gitlab                | `cas.samlSp.gitlab` | `last_name`,`first_name`,`name`
 | Hipchat               | `cas.samlSp.hipchat` | `last_name`,`first_name`,`title`
 | Dropbox               | `cas.samlSp.dropbox` | `mail`
-| TestShib               | `cas.samlSp.testShib` | `eduPersonPrincipalName`
-| OpenAthens               | `cas.samlSp.openAthens` | `email`, `eduPersonPrincipalName`
-| Egnyte               | `cas.samlSp.egnyte` | N/A
-| EverBridge               | `cas.samlSp.everBridge` | N/A
-| Simplicity               | `cas.samlSp.simplicity` | N/A
-| App Dynamics               | `cas.samlSp.appDynamics` | `User.OpenIDName`, `User.email`, `User.fullName`, `AccessControl`, `Groups-Membership`
-| Yuja               | `cas.samlSp.yuja` | N/A
-| Simplicity               | `cas.samlSp.simplicity` | N/A
-| New Relic               | `cas.samlSp.newRelic` | N/A
+| TestShib              | `cas.samlSp.testShib` | `eduPersonPrincipalName`
+| OpenAthens            | `cas.samlSp.openAthens` | `email`, `eduPersonPrincipalName`
+| Egnyte                | `cas.samlSp.egnyte` | N/A
+| EverBridge            | `cas.samlSp.everBridge` | N/A
+| Simplicity            | `cas.samlSp.simplicity` | N/A
+| App Dynamics          | `cas.samlSp.appDynamics` | `User.OpenIDName`, `User.email`, `User.fullName`, `AccessControl`, `Groups-Membership`
+| Yuja                  | `cas.samlSp.yuja` | N/A
+| Simplicity            | `cas.samlSp.simplicity` | N/A
+| New Relic             | `cas.samlSp.newRelic` | N/A
 | Sunshine State Education and Research Computing Alliance               | `cas.samlSp.sserca` | N/A
 | CherWell               | `cas.samlSp.cherWell` | N/A
-| FAMIS               | `cas.samlSp.famis` | N/A
-| Bynder               | `cas.samlSp.bynder` | N/A
-| Web Advisor               | `cas.samlSp.webAdvisor` | `uid`
-| Adobe Creative Cloud               | `cas.samlSp.adobeCloud` | `firstName`, `lastName`, `email`
-| Securing The Human               | `cas.samlSp.sansSth` | `firstName`, `lastName`, `scopedUserId`, `department`, `reference`, `email`
-| Easy IEP               | `cas.samlSp.easyIep` | `employeeId`
-| Infinite Campus               | `cas.samlSp.infiniteCampus` | `employeeId`
-| Slack               | `cas.samlSp.slack` | `User.Email`, `User.Username`, `first_name`, `last_name`, `employeeId`
+| FAMIS                 | `cas.samlSp.famis` | N/A
+| Bynder                | `cas.samlSp.bynder` | N/A
+| Web Advisor           | `cas.samlSp.webAdvisor` | `uid`
+| Adobe Creative Cloud  | `cas.samlSp.adobeCloud` | `firstName`, `lastName`, `email`
+| Securing The Human    | `cas.samlSp.sansSth` | `firstName`, `lastName`, `scopedUserId`, `department`, `reference`, `email`
+| Easy IEP              | `cas.samlSp.easyIep` | `employeeId`
+| Infinite Campus       | `cas.samlSp.infiniteCampus` | `employeeId`
+| Slack                 | `cas.samlSp.slack` | `User.Email`, `User.Username`, `first_name`, `last_name`, `employeeId`
 | Zendesk               | `cas.samlSp.zendesk` | `organization`, `tags`, `phone`, `role`, `email`
 | Gartner               | `cas.samlSp.gartner` | `urn:oid:2.5.4.42`, `urn:oid:2.5.4.4`, `urn:oid:0.9.2342.19200300.100.1.3`
 | Arc GIS               | `cas.samlSp.arcGIS` | `arcNameId`, `mail`, `givenName`
-| Benefit Focus               | `cas.samlSp.benefitFocus` | `benefitFocusUniqueId`
-| Office365               | `cas.samlSp.office365` | `IDPEmail`, `ImmutableID`, `scopedImmutableID`
-| SAManage               | `cas.samlSp.saManage` | `mail`
-| Salesforce               | `cas.samlSp.salesforce` | `eduPersonPrincipalName`
+| Benefit Focus         | `cas.samlSp.benefitFocus` | `benefitFocusUniqueId`
+| Office365             | `cas.samlSp.office365` | `IDPEmail`, `ImmutableID`, `scopedImmutableID`
+| SAManage              | `cas.samlSp.saManage` | `mail`
+| Salesforce            | `cas.samlSp.salesforce` | `eduPersonPrincipalName`
 | Workday               | `cas.samlSp.workday` | N/A
-| Academic Works               | `cas.samlSp.academicWorks` | `displayName`
-| ZOOM               | `cas.samlSp.zoom` | `mail`, `sn`, `givenName`
-| Evernote               | `cas.samlSp.evernote` | `email`
-| Tableau               | `cas.samlSp.tableau` | `username`
-| Asana               | `cas.samlSp.asana` | `email`
-| Box               | `cas.samlSp.box` | `email`, `firstName`, `lastName`
+| Academic Works            | `cas.samlSp.academicWorks` | `displayName`
+| ZOOM                      | `cas.samlSp.zoom` | `mail`, `sn`, `givenName`
+| Evernote                  | `cas.samlSp.evernote` | `email`
+| Tableau                   | `cas.samlSp.tableau` | `username`
+| Asana                     | `cas.samlSp.asana` | `email`
+| Box                       | `cas.samlSp.box` | `email`, `firstName`, `lastName`
 | Service Now               | `cas.samlSp.serviceNow` | `eduPersonPrincipalName`
 | Net Partner               | `cas.samlSp.netPartner` | `studentId`
-| Webex               | `cas.samlSp.webex` | `firstName`, `lastName` 
-| InCommon        |  `cas.samlSp.inCommon` | `eduPersonPrincipalName`
+| Webex                     | `cas.samlSp.webex` | `firstName`, `lastName`
+| InCommon                  |  `cas.samlSp.inCommon` | `eduPersonPrincipalName`
+| Amazon                    |  `cas.samlSp.amazon` | `awsRoles`, `awsRoleSessionName`
+| Concur Solutions          | `cas.samlSp.concurSolutions` | `email`
+| PollEverywhere            | `cas.samlSp.pollEverywhere` | `email`
+| BlackBaud                 | `cas.samlSp.blackBaud` | `email`, `eduPersonPrincipalName`
+| GiveCampus                | `cas.samlSp.giveCampus` | `email`, `givenName`, `surname`, `displayName`
+| WarpWire                  | `cas.samlSp.warpWire` | `email`, `givenName`, `eduPersonPrincipalName`, `surname`, `eduPersonScopedAffiliation`, `employeeNumber`
+| WarpWire                  | `cas.samlSp.rocketChat` | `email`, `cn`, `username`
 
-**Note**: For InCommon and other metadata aggregates, multiple entity ids can be specified to filter [the InCommon metadata](https://spaces.internet2.edu/display/InCFederation/Metadata+Aggregates). EntityIds can be regular expression patterns and are mapped to CAS' `serviceId` field in the registry. The signature location MUST BE the public key used to sign the metadata. 
+**Note**: For InCommon and other metadata aggregates, multiple entity ids can be specified to filter [the InCommon metadata](https://spaces.internet2.edu/display/InCFederation/Metadata+Aggregates). EntityIds can be regular expression patterns and are mapped to CAS' `serviceId` field in the registry. The signature location MUST BE the public key used to sign the metadata.
 
 ## OpenID Connect
 
@@ -2425,7 +2586,7 @@ To learn more about this topic, [please review this guide](../integration/Delega
 
 ```properties
 # cas.authn.pac4j.typedIdUsed=false
-# cas.authn.pac4j.autoRedirect=false
+# cas.authn.pac4j.principalAttributeId=
 # cas.authn.pac4j.name=
 ```
 
@@ -2433,18 +2594,24 @@ The following external identity providers share [common blocks of settings](Conf
 
 | Identity Provider                       | Configuration Key
 |---------------------------|----------------------------------------------------------
-| Twitter               | `cas.authn.pac4j.twitter`
-| Paypal               | `cas.authn.pac4j.paypal`
-| Wordpress               | `cas.authn.pac4j.wordpress`
-| Yahoo               | `cas.authn.pac4j.yahoo`
-| Orcid               | `cas.authn.pac4j.orcid`
-| Dropbox               | `cas.authn.pac4j.dropbox`
-| GitHub               | `cas.authn.pac4j.github`
-| Foursquare               | `cas.authn.pac4j.foursquare`
+| Twitter                   | `cas.authn.pac4j.twitter`
+| Paypal                    | `cas.authn.pac4j.paypal`
+| Wordpress                 | `cas.authn.pac4j.wordpress`
+| Yahoo                     | `cas.authn.pac4j.yahoo`
+| Orcid                     | `cas.authn.pac4j.orcid`
+| Dropbox                   | `cas.authn.pac4j.dropbox`
+| GitHub                    | `cas.authn.pac4j.github`
+| Foursquare                | `cas.authn.pac4j.foursquare`
 | WindowsLive               | `cas.authn.pac4j.windowsLive`
-|  Google               | `cas.authn.pac4j.google`
+| Google                   | `cas.authn.pac4j.google`
 
 See below for other identity providers such as CAS, SAML2 and more.
+
+### Signing & Encryption
+
+The signing and encryption keys [are both JWKs](Configuration-Properties-Common.html#signing--encryption) of size `512` and `256`.
+The encryption algorithm is set to `AES_128_CBC_HMAC_SHA_256`. Signing & encryption settings for this feature are available [here](Configuration-Properties-Common.html#signing--encryption) under `${configurationKey}.cookie`.
+
 
 ### Google
 
@@ -2461,8 +2628,6 @@ Delegate authentication to an external CAS server.
 ```properties
 # cas.authn.pac4j.cas[0].loginUrl=
 # cas.authn.pac4j.cas[0].protocol=
-# (Optional) Friendly name for CAS, e.g. "This Organization" or "That Organization"
-# cas.authn.pac4j.cas[0].clientName=
 ```
 
 ### OAuth20
@@ -2486,6 +2651,7 @@ Delegate authentication to an external OpenID Connect server. Common settings fo
 ```properties
 # cas.authn.pac4j.oidc[0].type=KEYCLOAK|GOOGLE|AZURE|GENERIC
 # cas.authn.pac4j.oidc[0].discoveryUri=
+# cas.authn.pac4j.oidc[0].logoutUrl=
 # cas.authn.pac4j.oidc[0].maxClockSkew=
 # cas.authn.pac4j.oidc[0].scope=
 # cas.authn.pac4j.oidc[0].useNonce=
@@ -2499,19 +2665,12 @@ Delegate authentication to an external SAML2 IdP (do not use the `resource:` or 
 prefixes for the `keystorePath` or `identityProviderMetadataPath` property).
 
 ```properties
-# Settings required for CAS SP metadata generation process
-# The keystore will be automatically generated by CAS with
-# keys required for the metadata generation and/or exchange.
-#
 # cas.authn.pac4j.saml[0].keystorePassword=
 # cas.authn.pac4j.saml[0].privateKeyPassword=
 # cas.authn.pac4j.saml[0].keystorePath=
 # cas.authn.pac4j.saml[0].keystoreAlias=
 
-# The entityID assigned to CAS acting as the SP
 # cas.authn.pac4j.saml[0].serviceProviderEntityId=
-
-# Path to the auto-generated CAS SP metadata
 # cas.authn.pac4j.saml[0].serviceProviderMetadataPath=
 
 # cas.authn.pac4j.saml[0].maximumAuthenticationLifetime=
@@ -2520,21 +2679,15 @@ prefixes for the `keystorePath` or `identityProviderMetadataPath` property).
 # Path/URL to delegated IdP metadata
 # cas.authn.pac4j.saml[0].identityProviderMetadataPath=
 
-# (Optional) Friendly name for IdP, e.g. "This Organization" or "That Organization"
-# This name, with 'nonword' characters converted to '-' (e.g. This Org (New) become This-Org--New- ),
-# is added to the "class" attribute of the redirect link on the login page, to allow for
-# custom styling of individual IdPs (e.g. for an organization logo).
-# cas.authn.pac4j.saml[0].clientName=
-
-# Control aspects of the authentication request sent to IdP
 # cas.authn.pac4j.saml[0].authnContextClassRef=
 # cas.authn.pac4j.saml[0].authnContextComparisonType=
 # cas.authn.pac4j.saml[0].nameIdPolicyFormat=
 # cas.authn.pac4j.saml[0].forceAuth=false
 # cas.authn.pac4j.saml[0].passive=false
 
-# Define whether metadata requires assertions signed
 # cas.authn.pac4j.saml[0].wantsAssertionsSigned=
+# cas.authn.pac4j.saml[0].attributeConsumingServiceIndex=
+# cas.authn.pac4j.saml[0].assertionConsumerServiceIndex=-1
 ```
 
 Examine the generated metadata after accessing the CAS login screen to ensure all ports and endpoints are correctly adjusted.  Finally, share the CAS SP metadata with the delegated IdP and register CAS as an authorized relying party.
@@ -2557,6 +2710,12 @@ Delegate authentication to LinkedIn. Common settings for this identity provider 
 # cas.authn.pac4j.linkedIn.scope=
 ```
 
+### Twitter
+Delegate authentication to Twitter.  Common settings for this identity provider are available [here](Configuration-Properties-Common.html#delegated-authentication-settings) under the configuration key `cas.authn.pac4j.twitter`.
+
+```properties
+# cas.authn.pac4j.twitter.includeEmail=false
+```
 
 ## WS Federation
 
@@ -2608,7 +2767,6 @@ To learn more about this topic, [please review this guide](OAuth-OpenId-Authenti
 # cas.authn.oauth.grants.resourceOwner.requireServiceHeader=true
 
 # cas.authn.oauth.userProfileViewType=NESTED|FLAT
-# cas.authn.oauth.throttler=neverThrottle|authenticationThrottle
 ```
 
 ## Localization
@@ -2623,8 +2781,10 @@ To learn more about this topic, [please review this guide](User-Interface-Custom
 ## Global SSO Behavior
 
 ```properties
-# cas.sso.missingService=true
-# cas.sso.renewedAuthn=true
+# cas.sso.allowMissingServiceParameter=true
+# cas.sso.createSsoCookieOnRenewAuthn=true
+# cas.sso.proxyAuthnEnabled=true
+# cas.sso.renewAuthnEnabled=true
 ```
 
 ## Warning Cookie
@@ -2654,7 +2814,9 @@ Created by CAS if and when users are to be warned when accessing CAS protected s
 
 ### Signing & Encryption
 
-The signing and encryption keys [are both JWKs](Configuration-Properties-Common.html#signing--encryption) of size `512` and `256`. The encryption algorithm is set to `AES_128_CBC_HMAC_SHA_256`. Signing & encryption settings for this feature are available [here](Configuration-Properties-Common.html#signing--encryption) under the configuration key `cas.tgc`.
+The signing and encryption keys [are both JWKs](Configuration-Properties-Common.html#signing--encryption) of size `512` and `256`.
+The encryption algorithm is set to `AES_128_CBC_HMAC_SHA_256`.
+Signing & encryption settings for this feature are available [here](Configuration-Properties-Common.html#signing--encryption) under the configuration key `cas.tgc`.
 
 ## Logout
 
@@ -2694,7 +2856,7 @@ The signing and encryption keys [are both JWKs](Configuration-Properties-Common.
 ## Message Bundles
 
 To learn more about this topic, [please review this guide](User-Interface-Customization-Localization.html).
-The baseNames are message bundle base names representing files that either end in .properties or _xx.properties where xx is a country locale code. The commonNames are not actually message bundles but they are properties files that are merged together and contain keys that are only used if they are not found in the message bundles. Keys from the later files in the list will be preferred over keys from the earlier files. 
+The baseNames are message bundle base names representing files that either end in .properties or _xx.properties where xx is a country locale code. The commonNames are not actually message bundles but they are properties files that are merged together and contain keys that are only used if they are not found in the message bundles. Keys from the later files in the list will be preferred over keys from the earlier files.
 
 ```properties
 # cas.messageBundle.encoding=UTF-8
@@ -2711,26 +2873,60 @@ Control how audit messages are formatted.
 To learn more about this topic, [please review this guide](Audits.html).
 
 ```properties
-# cas.audit.auditFormat=DEFAULT|JSON
 # cas.audit.ignoreAuditFailures=false
-# cas.audit.singlelineSeparator=|
-# cas.audit.useSingleLine=false
 # cas.audit.appCode=CAS
+# cas.audit.numberOfDaysInHistory=30
 # cas.audit.includeValidationAssertion=false
 # cas.audit.alternateServerAddrHeaderName=
 # cas.audit.alternateClientAddrHeaderName=X-Forwarded-For
 # cas.audit.useServerHostAddress=false
 ```
 
+### Slf4j Audits
+
+Route audit logs to the Slf4j logging system which might in turn store audit logs in a file or any other
+destination that the logging system supports.
+
+The logger name is fixed at `org.apereo.inspektr.audit.support`.
+
+```xml
+<AsyncLogger name="org.apereo.inspektr.audit.support" level="info">
+    <!-- Route the audit data to any number of appenders supported by the logging framework. -->
+</AsyncLogger>
+```
+
+<div class="alert alert-info"><strong></strong><p>Audit records routed to the Slf4j log are not
+able to read the audit data back given the abstraction layer between CAS, the logging system
+and any number of log appenders that might push data to a variety of systems.</p></div>
+
+```properties
+# cas.audit.slf4j.auditFormat=DEFAULT|JSON
+# cas.audit.slf4j.singlelineSeparator=|
+# cas.audit.slf4j.useSingleLine=false
+```
+
 ### MongoDb Audits
 
 Store audit logs inside a MongoDb database.
 
- Configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.audit`.
- 
+ Common configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.audit`.
+
 ### Database Audits
 
-Store audit logs inside a database. Database settings for this feature are available [here](Configuration-Properties-Common.html#database-settings) under the configuration key `cas.audit.jdbc`.
+Store audit logs inside a database. Database settings for this feature are available [here](Configuration-Properties-Common.html#database-settings)
+under the configuration key `cas.audit.jdbc`.
+
+```properties
+# cas.audit.jdbc.asynchronous=true
+# cas.audit.jdbc.maxAgeDays=180
+# cas.audit.jdbc.columnLength=100
+# cas.audit.jdbc.isolationLevelName=ISOLATION_READ_COMMITTED
+# cas.audit.jdbc.propagationBehaviorName=PROPAGATION_REQUIRED
+```
+
+### REST Audits
+
+Store audit logs inside a database. RESTful settings for this feature are available [here](Configuration-Properties-Common.html#restful-integrations) under the configuration key `cas.audit.rest`.
 
 ## Sleuth Distributed Tracing
 
@@ -2781,7 +2977,7 @@ Decide how CAS should monitor the internal state of a memcached connection pool.
 
 ### MongoDb Monitors
 
-Decide how CAS should monitor the internal state of a MongoDb instance.  Configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.monitor`.
+Decide how CAS should monitor the internal state of a MongoDb instance.  Common configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.monitor`.
 
 ### Database Monitoring
 
@@ -2835,7 +3031,7 @@ To learn more about this topic, [please review this guide](Configuring-Authentic
 
 ### InfluxDb Events
 
-Decide how CAS should store authentication events inside an InfluxDb instance. Configuration settings for this feature are available [here](Configuration-Properties-Common.html#influxdb-configuration) under the configuration key `cas.events.influxDb`.
+Decide how CAS should store authentication events inside an InfluxDb instance. Common configuration settings for this feature are available [here](Configuration-Properties-Common.html#influxdb-configuration) under the configuration key `cas.events.influxDb`.
 
 ### Database Events
 
@@ -2843,7 +3039,7 @@ Decide how CAS should store authentication events inside a database instance. Da
 
 ### MongoDb Events
 
-Decide how CAS should store authentication events inside a MongoDb instance.  Configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.events`.
+Decide how CAS should store authentication events inside a MongoDb instance.  Common configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.events`.
 
 ## Http Web Requests
 
@@ -2897,10 +3093,10 @@ a local truststore is provided by CAS to improve portability of configuration ac
 # cas.httpClient.connectionTimeout=5000
 # cas.httpClient.asyncTimeout=5000
 # cas.httpClient.readTimeout=5000
-# cas.httpClient.hostnameVerifier=NONE|DEFAULT
+# cas.httpClient.hostNameVerifier=NONE|DEFAULT
 # cas.httpClient.allowLocalLogoutUrls=false
 # cas.httpClient.authorityValidationRegEx=
-# cas.httpClient.authorityValidationRegExCaseSensitiv=true
+# cas.httpClient.authorityValidationRegExCaseSensitive=true
 
 # cas.httpClient.truststore.psw=changeit
 # cas.httpClient.truststore.file=classpath:/truststore.jks
@@ -2908,9 +3104,9 @@ a local truststore is provided by CAS to improve portability of configuration ac
 
 ### Hostname Verification
 
-The default options are avaiable for hostname verification:
+The default options are available for hostname verification:
 
-| Type                    | Description                            
+| Type                    | Description
 |-------------------------|--------------------------------------
 | `NONE`                  | Ignore hostname verification.
 | `DEFAULT`               | Enforce hostname verification.
@@ -2933,18 +3129,9 @@ See [this guide](Service-Management.html) to learn more.
 
 ### Service Registry Notifications
 
-```properties
-# cas.serviceRegistry.sms.from=
-# cas.serviceRegistry.sms.text=
-# cas.serviceRegistry.sms.attributeName=phone
-
-# cas.serviceRegistry.mail.from=
-# cas.serviceRegistry.mail.text=
-# cas.serviceRegistry.mail.subject=
-# cas.serviceRegistry.mail.cc=
-# cas.serviceRegistry.mail.bcc=
-# cas.serviceRegistry.mail.attributeName=mail
-```
+Email notifications settings for this feature are available [here](Configuration-Properties-Common.html#email-notifications) 
+under the configuration key `cas.serviceRegistry`. SMS notifications settings for this feature are 
+available [here](Configuration-Properties-Common.html#sms-notifications) under the configuration key `cas.serviceRegistry`.
 
 ### JSON Service Registry
 
@@ -2980,7 +3167,7 @@ To learn more about this topic, [please review this guide](REST-Service-Manageme
 
 ### Redis Service Registry
 
-To learn more about this topic, [please review this guide](Redis-Service-Management.html). Configuration settings for this feature are available [here](Configuration-Properties-Common.html#redis-configuration) under the configuration key `cas.serviceRegistry`.
+To learn more about this topic, [please review this guide](Redis-Service-Management.html). Common configuration settings for this feature are available [here](Configuration-Properties-Common.html#redis-configuration) under the configuration key `cas.serviceRegistry`.
 
 ### CosmosDb Service Registry
 
@@ -2998,13 +3185,21 @@ To learn more about this topic, [please review this guide](CosmosDb-Service-Mana
 
 ### DynamoDb Service Registry
 
-To learn more about this topic, [please review this guide](DynamoDb-Service-Management.html). Configuration settings for this feature are available [here](Configuration-Properties-Common.html#dynamodb-configuration) under the configuration key `cas.serviceRegistry`.
+To learn more about this topic, [please review this guide](DynamoDb-Service-Management.html).
+Common configuration settings for this feature are available [here](Configuration-Properties-Common.html#dynamodb-configuration)
+under the configuration key `cas.serviceRegistry`.
+AWS settings for this feature are available [here](Configuration-Properties-Common.html#amazon-integration-settings) 
+under the configuration key `cas.serviceRegistry.dynamoDb`.
+
+```properties
+# cas.serviceRegistry.dynamoDb.tableName=DynamoDbCasServices
+```
 
 ### MongoDb Service Registry
 
 Store CAS service definitions inside a MongoDb instance. To learn more about this topic, [please review this guide](Mongo-Service-Management.html).
- Configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.serviceRegistry`.
- 
+ Common configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.serviceRegistry`.
+
 ### LDAP Service Registry
 
 Control how CAS services should be found inside an LDAP instance.
@@ -3014,6 +3209,8 @@ To learn more about this topic, [please review this guide](LDAP-Service-Manageme
 # cas.serviceRegistry.ldap.serviceDefinitionAttribute=description
 # cas.serviceRegistry.ldap.idAttribute=uid
 # cas.serviceRegistry.ldap.objectClass=casRegisteredService
+# cas.serviceRegistry.ldap.searchFilter=(%s={0})
+# cas.serviceRegistry.ldap.loadFilter=(objectClass=%s)
 ```
 
 ### Couchbase Service Registry
@@ -3048,7 +3245,7 @@ Replication modes may be configured per the following options:
 Control how CAS services definition files should be replicated across a CAS cluster backed by a distributed Hazelcast cache.
 To learn more about this topic, [please review this guide](Configuring-Service-Replication.html).
 
-Hazlcast settings for this feature are available [here](Configuration-Properties-Common.html#hazelcast-configuration) under the configuration key `cas.serviceRegistry.stream.hazelcast.config`.
+Hazelcast settings for this feature are available [here](Configuration-Properties-Common.html#hazelcast-configuration) under the configuration key `cas.serviceRegistry.stream.hazelcast.config`.
 
 ```properties
 # cas.serviceRegistry.stream.hazelcast.duration=PT1M
@@ -3094,7 +3291,7 @@ Signing & encryption settings for this registry are available [here](Configurati
 
 To learn more about this topic, [please review this guide](Hazelcast-Ticket-Registry.html).
 
-Hazlcast settings for this feature are available [here](Configuration-Properties-Common.html#hazelcast-configuration) under the configuration key `cas.ticket.registry.hazelcast`.
+Hazelcast settings for this feature are available [here](Configuration-Properties-Common.html#hazelcast-configuration) under the configuration key `cas.ticket.registry.hazelcast`.
 
 Signing & encryption settings for this registry are available [here](Configuration-Properties-Common.html#signing--encryption) under the configuration key `cas.ticket.registry.hazelcast`.
 
@@ -3228,15 +3425,32 @@ Signing & encryption settings for this registry are available [here](Configurati
 
 ### DynamoDb Ticket Registry
 
-To learn more about this topic, [please review this guide](DynamoDb-Ticket-Registry.html). Configuration settings for this feature are available [here](Configuration-Properties-Common.html#dynamodb-configuration) under the configuration key `cas.ticket.registry.dynamoDb`. Signing & encryption settings for this registry are available [here](Configuration-Properties-Common.html#signing--encryption) under the configuration key `cas.ticket.registry.dynamoDb`.
+To learn more about this topic, [please review this guide](DynamoDb-Ticket-Registry.html). 
+
+Common configuration settings for this feature are available [here](Configuration-Properties-Common.html#dynamodb-configuration) 
+under the configuration key `cas.ticket.registry`. 
+
+Signing & encryption settings for this registry are available [here](Configuration-Properties-Common.html#signing--encryption) 
+under the configuration key `cas.ticket.registry.dynamoDb`.
+
+AWS settings for this feature are available [here](Configuration-Properties-Common.html#amazon-integration-settings) 
+under the configuration key `cas.ticket.registry.dynamoDb`.
+
+```properties
+# cas.ticket.registry.dynamoDb.serviceTicketsTableName=serviceTicketsTable
+# cas.ticket.registry.dynamoDb.proxyTicketsTableName=proxyTicketsTable
+# cas.ticket.registry.dynamoDb.ticketGrantingTicketsTableName=ticketGrantingTicketsTable
+# cas.ticket.registry.dynamoDb.proxyGrantingTicketsTableName=proxyGrantingTicketsTable
+# cas.ticket.registry.dynamoDb.transientSessionTicketsTableName=transientSessionTicketsTable
+```
 
 ### MongoDb Ticket Registry
 
-To learn more about this topic, [please review this guide](MongoDb-Ticket-Registry.html). Signing & encryption settings for this registry are available [here](Configuration-Properties-Common.html#signing--encryption) under the configuration key `cas.ticket.registry.mongo`.  Configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.ticket.registry`. 
+To learn more about this topic, [please review this guide](MongoDb-Ticket-Registry.html). Signing & encryption settings for this registry are available [here](Configuration-Properties-Common.html#signing--encryption) under the configuration key `cas.ticket.registry.mongo`.  Common configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.ticket.registry`.
 
 ### Redis Ticket Registry
 
-To learn more about this topic, [please review this guide](Redis-Ticket-Registry.html). Configuration settings for this feature are available [here](Configuration-Properties-Common.html#redis-configuration) under the configuration key `cas.ticket.registry`. Signing & encryption settings for this registry are available [here](Configuration-Properties-Common.html#signing--encryption) under the configuration key `cas.ticket.registry.redis`.
+To learn more about this topic, [please review this guide](Redis-Ticket-Registry.html). Common configuration settings for this feature are available [here](Configuration-Properties-Common.html#redis-configuration) under the configuration key `cas.ticket.registry`. Signing & encryption settings for this registry are available [here](Configuration-Properties-Common.html#signing--encryption) under the configuration key `cas.ticket.registry.redis`.
 
 ## Protocol Ticket Security
 
@@ -3246,8 +3460,7 @@ The encryption algorithm is set to `AES_128_CBC_HMAC_SHA_256`. Signing & encrypt
 
 ## Service Tickets Behavior
 
-Controls the expiration policy of service tickets, as well as other properties
-applicable to STs.
+Controls the expiration policy of service tickets, as well as other properties applicable to STs.
 
 ```properties
 # cas.ticket.st.maxLength=20
@@ -3267,6 +3480,13 @@ applicable to STs.
 ```properties
 # cas.ticket.pt.timeToKillInSeconds=10
 # cas.ticket.pt.numberOfUses=1
+```
+
+
+## Transient Session Tickets Behavior
+
+```properties
+# cas.ticket.tst.timeToKillInSeconds=300
 ```
 
 ## Ticket Granting Tickets Behavior
@@ -3336,18 +3556,6 @@ The hard timeout policy provides for finite ticket lifetime as measured from the
 ```properties
 # cas.ticket.tgt.hardTimeout.timeToKillInSeconds=28800
 ```
-
-### Attributes
-
-Attribute configuration and customizations that are processed and accepted by the management web application are defined via the following settings:
-
-```properties
-# cas.authn.attributeRepository.stub.attributes.uid=uid
-# cas.authn.attributeRepository.stub.attributes.givenName=givenName
-# cas.authn.attributeRepository.stub.attributes.eppn=eppn
-```
-
-Use LDAP to enforce access into the management web application either by group or attribute.
 
 ## Google reCAPTCHA Integration
 
@@ -3461,6 +3669,13 @@ Interrupt the authentication flow to reach out to external services. To learn mo
 # cas.interrupt.json.location=file:/etc/cas/config/interrupt.json
 ```
 
+#### Authentication Interrupt Regex Attributes
+
+```properties
+# cas.interrupt.attributeName=attribute-name-pattern
+# cas.interrupt.attributeValue=attribute-value-pattern
+```
+
 #### Authentication Interrupt Groovy
 
 ```properties
@@ -3495,7 +3710,7 @@ If AUP is controlled via JDBC, decide how choices should be remembered back insi
 
 #### MongoDb
 
- Configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.acceptableUsagePolicy`. 
+ Common configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.acceptableUsagePolicy`.
 
 #### LDAP
 
@@ -3508,7 +3723,6 @@ To learn more about this topic, [please review this guide](../protocol/REST-Prot
 ```properties
 # cas.rest.attributeName=
 # cas.rest.attributeValue=
-# cas.rest.throttler=neverThrottle|authenticationThrottle
 ```
 
 ## Metrics
@@ -3529,7 +3743,7 @@ To learn more about this topic, [please review this guide](Monitoring-Statistics
 # cas.metrics.redis.prefix=
 ```
 
-Configuration settings for this feature are available [here](Configuration-Properties-Common.html#redis-configuration) under the configuration key `cas.metrics`.
+Common configuration settings for this feature are available [here](Configuration-Properties-Common.html#redis-configuration) under the configuration key `cas.metrics`.
 
 #### Statsd
 
@@ -3541,7 +3755,7 @@ Configuration settings for this feature are available [here](Configuration-Prope
 
 #### MongoDb
 
- Configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.metrics.mongo`. 
+ Common configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.metrics.mongo`.
 
 #### Open TSDB
 
@@ -3553,7 +3767,7 @@ Configuration settings for this feature are available [here](Configuration-Prope
 
 #### InfluxDb
 
-Configuration settings for this feature are available [here](Configuration-Properties-Common.html#influxdb-configuration) under the configuration key `cas.metrics.influxDb`.
+Common configuration settings for this feature are available [here](Configuration-Properties-Common.html#influxdb-configuration) under the configuration key `cas.metrics.influxDb`.
 
 ## SAML Metadata UI
 
@@ -3622,7 +3836,7 @@ To learn more about this topic, [please review this guide](../integration/SCIM-I
 
 ## Attribute Consent
 
-CAS provides the ability to enforce user-informed consent upon attribute release. 
+CAS provides the ability to enforce user-informed consent upon attribute release.
 To learn more about this topic, [please review this guide](../integration/Attribute-Release-Consent.html).
 
 ```properties
@@ -3658,7 +3872,7 @@ LDAP settings for this feature are available [here](Configuration-Properties-Com
 
 ### MongoDb Attribute Consent
 
- Configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.consent`. 
+ Common configuration settings for this feature are available [here](Configuration-Properties-Common.html#mongodb-configuration) under the configuration key `cas.consent`.
 
 ### REST Attribute Consent
 
@@ -3674,6 +3888,15 @@ To learn more about this topic, [please review this guide](../integration/Config
 # cas.authn.fortress.rbaccontext=HOME
 ```
 
+## CAS Client
+
+Configure settings relevant to the Java CAS client configured to handle inbound ticket validation operations, etc.
+
+```properties
+# cas.client.prefix=https://sso.example.org/cas
+# cas.client.validatorType=CAS10|CAS20|CAS30
+```
+
 ## Password Management
 
 Allow the user to update their account password, etc in-place.
@@ -3685,16 +3908,15 @@ To learn more about this topic, [please review this guide](Password-Policy-Enfor
 # Minimum 8 and Maximum 10 characters at least 1 Uppercase Alphabet, 1 Lowercase Alphabet, 1 Number and 1 Special Character
 # cas.authn.pm.policyPattern=^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[$@$!%*?&])[A-Za-z\\d$@$!%*?&]{8,10}
 
-# cas.authn.pm.reset.text=Reset your password with this link: %s
-# cas.authn.pm.reset.subject=Password Reset Request
-# cas.authn.pm.reset.from=
 # cas.authn.pm.reset.expirationMinutes=1
-# cas.authn.pm.reset.emailAttribute=mail
 # cas.authn.pm.reset.securityQuestionsEnabled=true
 
 # Automatically log in after successful password change
 # cas.authn.pm.autoLogin=false
 ```
+
+Email notifications settings for this feature are available [here](Configuration-Properties-Common.html#email-notifications) 
+under the configuration key `cas.authn.pm.reset`.
 
 The signing and encryption keys [are both JWKs](Configuration-Properties-Common.html#signing--encryption) of size `512` and `256`.
 The encryption algorithm is set to `AES_128_CBC_HMAC_SHA_256`. Signing & encryption settings for this feature are available [here](Configuration-Properties-Common.html#signing--encryption) under the configuration key `cas.authn.pm.reset`.
@@ -3705,13 +3927,20 @@ The encryption algorithm is set to `AES_128_CBC_HMAC_SHA_256`. Signing & encrypt
 # cas.authn.pm.json.location=classpath:jsonResourcePassword.json
 ```
 
+### Groovy Password Management
+
+```properties
+# cas.authn.pm.groovy.location=classpath:PasswordManagementService.groovy
+```
+
 ### LDAP Password Management
 
 LDAP settings for this feature are available [here](Configuration-Properties-Common.html#ldap-connection-settings) under the configuration key `cas.authn.pm.ldap`.
 
 ```properties
-# Attributes that should be fetched to indicate security questions and answers,
-# assuming security questions are enabled.
+# cas.authn.pm.ldap.type=AD|GENERIC|EDirectory|FreeIPA
+
+# Attributes that should be fetched to indicate security questions and answers
 # cas.authn.pm.ldap.securityQuestionsAttributes.attrQuestion1=attrAnswer1
 # cas.authn.pm.ldap.securityQuestionsAttributes.attrQuestion2=attrAnswer2
 # cas.authn.pm.ldap.securityQuestionsAttributes.attrQuestion3=attrAnswer3
@@ -3719,7 +3948,9 @@ LDAP settings for this feature are available [here](Configuration-Properties-Com
 
 ### JDBC Password Management
 
-Database settings for this feature are available [here](Configuration-Properties-Common.html#database-settings) under the configuration key `cas.authn.pm.jdbc`. Password encoding  settings for this feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.pm.jdbc`.
+Database settings for this feature are available [here](Configuration-Properties-Common.html#database-settings) 
+under the configuration key `cas.authn.pm.jdbc`. Password encoding  settings for this 
+feature are available [here](Configuration-Properties-Common.html#password-encoding) under the configuration key `cas.authn.pm.jdbc`.
 
 ```properties
 # The two fields indicated below are expected to be returned

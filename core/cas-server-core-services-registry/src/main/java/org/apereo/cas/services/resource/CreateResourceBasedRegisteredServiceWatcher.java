@@ -1,10 +1,9 @@
 package org.apereo.cas.services.resource;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.services.RegisteredService;
 import org.apereo.cas.support.events.service.CasRegisteredServicePreSaveEvent;
 import org.apereo.cas.support.events.service.CasRegisteredServiceSavedEvent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.Collection;
@@ -16,10 +15,11 @@ import java.util.Objects;
  * @author Misagh Moayyed
  * @since 5.2.0
  */
+@Slf4j
 public class CreateResourceBasedRegisteredServiceWatcher extends BaseResourceBasedRegisteredServiceWatcher {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CreateResourceBasedRegisteredServiceWatcher.class);
+
     
-    public CreateResourceBasedRegisteredServiceWatcher(final AbstractResourceBasedServiceRegistryDao serviceRegistryDao) {
+    public CreateResourceBasedRegisteredServiceWatcher(final AbstractResourceBasedServiceRegistry serviceRegistryDao) {
         super(serviceRegistryDao);
     }
 

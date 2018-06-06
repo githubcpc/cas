@@ -1,5 +1,7 @@
 package org.apereo.cas.logout;
 
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.authentication.principal.AbstractWebApplicationService;
 import org.apereo.cas.authentication.principal.WebApplicationServiceFactory;
 import org.apereo.cas.services.AbstractRegisteredService;
@@ -14,6 +16,7 @@ import org.junit.runners.JUnit4;
 import org.springframework.mock.web.MockHttpServletRequest;
 
 import java.net.URL;
+import java.util.Collection;
 
 import static org.junit.Assert.*;
 
@@ -24,6 +27,7 @@ import static org.junit.Assert.*;
  * @since 5.1.0
  */
 @RunWith(JUnit4.class)
+@Slf4j
 public class DefaultSingleLogoutServiceLogoutUrlBuilderTests {
 
     @Test
@@ -31,7 +35,7 @@ public class DefaultSingleLogoutServiceLogoutUrlBuilderTests {
         final AbstractRegisteredService svc = getRegisteredService("https://www.google.com");
         svc.setLogoutUrl(new URL("http://www.example.com/logout"));
         final DefaultSingleLogoutServiceLogoutUrlBuilder builder = createDefaultSingleLogoutServiceLogoutUrlBuilder(false);
-        final URL url = builder.determineLogoutUrl(svc, getService("https://www.google.com"));
+        final URL url = builder.determineLogoutUrl(svc, getService("https://www.google.com")).iterator().next();
         assertEquals(url, svc.getLogoutUrl());
     }
 
@@ -40,26 +44,26 @@ public class DefaultSingleLogoutServiceLogoutUrlBuilderTests {
         final AbstractRegisteredService svc = getRegisteredService(".+");
         svc.setLogoutUrl(null);
         final DefaultSingleLogoutServiceLogoutUrlBuilder builder = createDefaultSingleLogoutServiceLogoutUrlBuilder(false);
-        final URL url = builder.determineLogoutUrl(svc, getService("https://www.somewhere.com/logout?p=v"));
+        final URL url = builder.determineLogoutUrl(svc, getService("https://www.somewhere.com/logout?p=v")).iterator().next();
         assertEquals(url, new URL("https://www.somewhere.com/logout?p=v"));
     }
 
     @Test
-    public void verifyLogoutUrlUnknownUrlProtocol() throws Exception {
+    public void verifyLogoutUrlUnknownUrlProtocol() {
         final AbstractRegisteredService svc = getRegisteredService(".+");
         svc.setLogoutUrl(null);
         final DefaultSingleLogoutServiceLogoutUrlBuilder builder = createDefaultSingleLogoutServiceLogoutUrlBuilder(false);
-        final URL url = builder.determineLogoutUrl(svc, getService("imaps://etc.example.org"));
-        assertNull(url);
+        final Collection<URL> url =builder.determineLogoutUrl(svc, getService("imaps://etc.example.org"));
+        assertTrue(url.isEmpty());
     }
 
     @Test
-    public void verifyLocalLogoutUrlWithLocalUrlNotAllowed() throws Exception {
+    public void verifyLocalLogoutUrlWithLocalUrlNotAllowed() {
         final AbstractRegisteredService svc = getRegisteredService(".+");
         svc.setLogoutUrl(null);
         final DefaultSingleLogoutServiceLogoutUrlBuilder builder = createDefaultSingleLogoutServiceLogoutUrlBuilder(false);
-        final URL url = builder.determineLogoutUrl(svc, getService("https://localhost/logout?p=v"));
-        assertNull(url);
+        final Collection<URL> url = builder.determineLogoutUrl(svc, getService("https://localhost/logout?p=v"));
+        assertTrue(url.isEmpty());
     }
 
     @Test
@@ -67,16 +71,16 @@ public class DefaultSingleLogoutServiceLogoutUrlBuilderTests {
         final AbstractRegisteredService svc = getRegisteredService(".+");
         svc.setLogoutUrl(null);
         final DefaultSingleLogoutServiceLogoutUrlBuilder builder = createDefaultSingleLogoutServiceLogoutUrlBuilder(true);
-        final URL url = builder.determineLogoutUrl(svc, getService("https://localhost/logout?p=v"));
+        final URL url = builder.determineLogoutUrl(svc, getService("https://localhost/logout?p=v")).iterator().next();
         assertEquals(url, new URL("https://localhost/logout?p=v"));
     }
-    
+
     @Test
     public void verifyLocalLogoutUrlWithValidRegExValidationAndLocalUrlNotAllowed() throws Exception {
         final AbstractRegisteredService svc = getRegisteredService(".+");
         svc.setLogoutUrl(null);
         final DefaultSingleLogoutServiceLogoutUrlBuilder builder = createDefaultSingleLogoutServiceLogoutUrlBuilder(false, "\\w*", true);
-        final URL url = builder.determineLogoutUrl(svc, getService("https://localhost/logout?p=v"));
+        final URL url = builder.determineLogoutUrl(svc, getService("https://localhost/logout?p=v")).iterator().next();
         assertEquals(url, new URL("https://localhost/logout?p=v"));
     }
 
@@ -85,42 +89,40 @@ public class DefaultSingleLogoutServiceLogoutUrlBuilderTests {
         final AbstractRegisteredService svc = getRegisteredService(".+");
         svc.setLogoutUrl(null);
         final DefaultSingleLogoutServiceLogoutUrlBuilder builder = createDefaultSingleLogoutServiceLogoutUrlBuilder(true, "\\d*", true);
-        final URL url = builder.determineLogoutUrl(svc, getService("https://localhost/logout?p=v"));
+        final URL url = builder.determineLogoutUrl(svc, getService("https://localhost/logout?p=v")).iterator().next();
         assertEquals(url, new URL("https://localhost/logout?p=v"));
     }
 
     @Test
-    public void verifyLocalLogoutUrlWithInvalidRegExValidationAndLocalUrlNotAllowed() throws Exception {
+    public void verifyLocalLogoutUrlWithInvalidRegExValidationAndLocalUrlNotAllowed() {
         final AbstractRegisteredService svc = getRegisteredService(".+");
         svc.setLogoutUrl(null);
         final DefaultSingleLogoutServiceLogoutUrlBuilder builder = createDefaultSingleLogoutServiceLogoutUrlBuilder(false, "\\d*", true);
-        final URL url = builder.determineLogoutUrl(svc, getService("https://localhost/logout?p=v"));
-        assertNull(url);
+        final Collection<URL> url = builder.determineLogoutUrl(svc, getService("https://localhost/logout?p=v"));
+        assertTrue(url.isEmpty());
     }
- 
-    private DefaultSingleLogoutServiceLogoutUrlBuilder createDefaultSingleLogoutServiceLogoutUrlBuilder(final boolean allowLocalLogoutUrls) throws Exception {
+
+    private DefaultSingleLogoutServiceLogoutUrlBuilder createDefaultSingleLogoutServiceLogoutUrlBuilder(final boolean allowLocalLogoutUrls) {
         return createDefaultSingleLogoutServiceLogoutUrlBuilder(allowLocalLogoutUrls, null, true);
     }
-    
-    private DefaultSingleLogoutServiceLogoutUrlBuilder createDefaultSingleLogoutServiceLogoutUrlBuilder(final boolean allowLocalLogoutUrls, 
-            final String authorityValidationRegEx, final boolean authorityValidationRegExCaseSensitiv) throws Exception{
-        final UrlValidator validator = new SimpleUrlValidatorFactoryBean(allowLocalLogoutUrls, authorityValidationRegEx, 
-            authorityValidationRegExCaseSensitiv).getObject();
+
+    private DefaultSingleLogoutServiceLogoutUrlBuilder createDefaultSingleLogoutServiceLogoutUrlBuilder(final boolean allowLocalLogoutUrls,
+                                                                                                        final String authorityValidationRegEx,
+                                                                                                        final boolean authorityValidationRegExCaseSensitive) {
+        final UrlValidator validator = new SimpleUrlValidatorFactoryBean(allowLocalLogoutUrls, authorityValidationRegEx,
+            authorityValidationRegExCaseSensitive).getObject();
         return new DefaultSingleLogoutServiceLogoutUrlBuilder(validator);
     }
 
+    @SneakyThrows
     public static AbstractRegisteredService getRegisteredService(final String id) {
-        try {
-            final RegexRegisteredService s = new RegexRegisteredService();
-            s.setServiceId(id);
-            s.setName("Test service " + id);
-            s.setDescription("Registered service description");
-            s.setProxyPolicy(new RegexMatchingRegisteredServiceProxyPolicy("^https?://.+"));
-            s.setId(RandomUtils.getInstanceNative().nextInt(Math.abs(s.hashCode())));
-            return s;
-        } catch (final Exception e) {
-            throw new RuntimeException(e.getMessage(), e);
-        }
+        final RegexRegisteredService s = new RegexRegisteredService();
+        s.setServiceId(id);
+        s.setName("Test service " + id);
+        s.setDescription("Registered service description");
+        s.setProxyPolicy(new RegexMatchingRegisteredServiceProxyPolicy("^https?://.+"));
+        s.setId(RandomUtils.getNativeInstance().nextInt(Math.abs(s.hashCode())));
+        return s;
     }
 
     public static AbstractWebApplicationService getService(final String url) {

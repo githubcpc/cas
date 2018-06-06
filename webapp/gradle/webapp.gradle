@@ -16,7 +16,11 @@ node {
     download = true
 }
 
-npm_install.dependsOn(npm_cache_clean)
+if (!Boolean.getBoolean("skipNpmCache")) {
+    npm_install.dependsOn(npm_cache_clean)
+}  else {
+    npm_install.enabled = false
+}
 
 task npmLint(type: NpmTask) {
     dependsOn npm_install
@@ -32,7 +36,7 @@ task compileSass(type: NpmTask) {
     args = ['run', 'gulp', '--silent']
 }
 
-if (!rootProject.publishingRelease) {
+if (!rootProject.publishingRelease && !Boolean.getBoolean("skipNpmLint")) {
     processResources.dependsOn npmLint
 }
 
@@ -108,7 +112,7 @@ war {
                 "Implementation-Version": project.version)
     }
     from "${project.buildDir}/generated-src/main/resources", { into "WEB-INF/classes" }
-    enabled = !rootProject.publishingRelease && !rootProject.publishSnapshots
+    enabled = !rootProject.publishingRelease
 }
 
 dependencies {
@@ -121,6 +125,7 @@ dependencies {
     implementation project(":core:cas-server-core-logging")
     implementation project(":core:cas-server-core-tickets")
     implementation project(":core:cas-server-core-web")
+    implementation project(":core:cas-server-core-webflow")
     implementation project(":core:cas-server-core-validation")
     implementation project(":core:cas-server-core-util")
     implementation project(":core:cas-server-core-cookie")
@@ -130,6 +135,7 @@ dependencies {
     implementation project(":core:cas-server-core-configuration-metadata-repository")
 
     implementation project(":support:cas-server-support-throttle")
+    implementation project(":support:cas-server-support-metrics")
     implementation project(":support:cas-server-support-person-directory")
     implementation project(":support:cas-server-support-configuration")
     implementation project(":support:cas-server-support-geolocation")
@@ -138,7 +144,7 @@ dependencies {
     implementation project(":support:cas-server-support-themes")
     implementation project(":support:cas-server-support-validation")
     implementation project(":support:cas-server-support-pm-webflow")
-    
+
     implementation project(":webapp:cas-server-webapp-config")
     implementation project(":webapp:cas-server-webapp-init")
 
@@ -148,6 +154,7 @@ dependencies {
     implementation libraries.cassecurityfilter
     implementation libraries.metrics
     implementation libraries.bouncycastle
-    runtime libraries.webjars
     implementation libraries.springcloudconfigclient
+
+    runtime libraries.webjars
 }

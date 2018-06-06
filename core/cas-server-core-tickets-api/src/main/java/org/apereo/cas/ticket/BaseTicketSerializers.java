@@ -2,14 +2,14 @@ package org.apereo.cas.ticket;
 
 import com.fasterxml.jackson.core.PrettyPrinter;
 import com.fasterxml.jackson.core.util.MinimalPrettyPrinter;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apereo.cas.ticket.proxy.ProxyGrantingTicket;
 import org.apereo.cas.ticket.proxy.ProxyTicket;
 import org.apereo.cas.ticket.registry.EncodedTicket;
 import org.apereo.cas.util.serialization.AbstractJacksonBackedStringSerializer;
 import org.apereo.cas.util.serialization.StringSerializer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.StringWriter;
 import java.util.Map;
@@ -22,18 +22,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author Misagh Moayyed
  * @since 5.1.0
  */
+@Slf4j
 public abstract class BaseTicketSerializers {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BaseTicketSerializers.class);
+
     private static final Map<String, Class> TICKET_TYPE_CACHE = new ConcurrentHashMap<>();
     private static final PrettyPrinter MINIMAL_PRETTY_PRINTER = new MinimalPrettyPrinter();
 
-    /**
-     * Gets proxy granting ticket serializer.
-     *
-     * @return the proxy granting ticket serializer
-     */
-    public static StringSerializer<ProxyGrantingTicket> getProxyGrantingTicketSerializer() {
-        return new AbstractJacksonBackedStringSerializer<ProxyGrantingTicket>(MINIMAL_PRETTY_PRINTER) {
+    private static final StringSerializer<ProxyGrantingTicket> PROXY_GRANTING_TICKET_SERIALIZER
+        = new AbstractJacksonBackedStringSerializer<ProxyGrantingTicket>(MINIMAL_PRETTY_PRINTER) {
             private static final long serialVersionUID = 7089208351327601379L;
 
             @Override
@@ -41,6 +37,54 @@ public abstract class BaseTicketSerializers {
                 return ProxyGrantingTicket.class;
             }
         };
+
+    private static final StringSerializer<ProxyTicket> PROXY_TICKET_SERIALIZER
+        = new AbstractJacksonBackedStringSerializer<ProxyTicket>(MINIMAL_PRETTY_PRINTER) {
+            private static final long serialVersionUID = -6343596853082798477L;
+
+            @Override
+            protected Class<ProxyTicket> getTypeToSerialize() {
+                return ProxyTicket.class;
+            }
+        };
+
+    private static final StringSerializer<TicketGrantingTicket> TICKET_GRANTING_TICKET_SERIALIZER
+        = new AbstractJacksonBackedStringSerializer<TicketGrantingTicket>(MINIMAL_PRETTY_PRINTER) {
+            private static final long serialVersionUID = 1527874389457723545L;
+
+            @Override
+            protected Class<TicketGrantingTicket> getTypeToSerialize() {
+                return TicketGrantingTicket.class;
+            }
+        };
+
+    private static final StringSerializer<ServiceTicket> SERVICE_TICKET_SERIALIZER
+        = new AbstractJacksonBackedStringSerializer<ServiceTicket>(MINIMAL_PRETTY_PRINTER) {
+            private static final long serialVersionUID = 8959617299162115085L;
+
+            @Override
+            protected Class<ServiceTicket> getTypeToSerialize() {
+                return ServiceTicket.class;
+            }
+        };
+
+    private static final StringSerializer<EncodedTicket> ENCODED_TICKET_SERIALIZER
+        = new AbstractJacksonBackedStringSerializer<EncodedTicket>(MINIMAL_PRETTY_PRINTER) {
+            private static final long serialVersionUID = 8959835299162115085L;
+
+            @Override
+            protected Class<EncodedTicket> getTypeToSerialize() {
+                return EncodedTicket.class;
+            }
+        };
+
+    /**
+     * Gets proxy granting ticket serializer.
+     *
+     * @return the proxy granting ticket serializer
+     */
+    public static StringSerializer<ProxyGrantingTicket> getProxyGrantingTicketSerializer() {
+        return PROXY_GRANTING_TICKET_SERIALIZER;
     }
 
     /**
@@ -49,14 +93,7 @@ public abstract class BaseTicketSerializers {
      * @return the proxy ticket serializer
      */
     public static StringSerializer<ProxyTicket> getProxyTicketSerializer() {
-        return new AbstractJacksonBackedStringSerializer<ProxyTicket>(MINIMAL_PRETTY_PRINTER) {
-            private static final long serialVersionUID = -6343596853082798477L;
-
-            @Override
-            protected Class<ProxyTicket> getTypeToSerialize() {
-                return ProxyTicket.class;
-            }
-        };
+        return PROXY_TICKET_SERIALIZER;
     }
 
     /**
@@ -65,14 +102,7 @@ public abstract class BaseTicketSerializers {
      * @return the ticket granting ticket serializer
      */
     public static StringSerializer<TicketGrantingTicket> getTicketGrantingTicketSerializer() {
-        return new AbstractJacksonBackedStringSerializer<TicketGrantingTicket>(MINIMAL_PRETTY_PRINTER) {
-            private static final long serialVersionUID = 1527874389457723545L;
-
-            @Override
-            protected Class<TicketGrantingTicket> getTypeToSerialize() {
-                return TicketGrantingTicket.class;
-            }
-        };
+        return TICKET_GRANTING_TICKET_SERIALIZER;
     }
 
     /**
@@ -81,25 +111,11 @@ public abstract class BaseTicketSerializers {
      * @return the service ticket serializer
      */
     public static StringSerializer<ServiceTicket> getServiceTicketSerializer() {
-        return new AbstractJacksonBackedStringSerializer<ServiceTicket>(MINIMAL_PRETTY_PRINTER) {
-            private static final long serialVersionUID = 8959617299162115085L;
-
-            @Override
-            protected Class<ServiceTicket> getTypeToSerialize() {
-                return ServiceTicket.class;
-            }
-        };
+        return SERVICE_TICKET_SERIALIZER;
     }
 
     public static StringSerializer<EncodedTicket> getEncodedTicketSerializer() {
-        return new AbstractJacksonBackedStringSerializer<EncodedTicket>(MINIMAL_PRETTY_PRINTER) {
-            private static final long serialVersionUID = 8959835299162115085L;
-
-            @Override
-            protected Class<EncodedTicket> getTypeToSerialize() {
-                return EncodedTicket.class;
-            }
-        };
+        return ENCODED_TICKET_SERIALIZER;
     }
 
     /**
@@ -130,22 +146,19 @@ public abstract class BaseTicketSerializers {
      * @param type          the type
      * @return the ticket instance.
      */
+    @SneakyThrows
     public static Ticket deserializeTicket(final String ticketContent, final String type) {
         if (StringUtils.isBlank(type)) {
             throw new InvalidTicketException("Invalid ticket type [blank] specified");
         }
-        try {
-            final Class clazz;
-            if (TICKET_TYPE_CACHE.containsKey(type)) {
-                clazz = TICKET_TYPE_CACHE.get(type);
-            } else {
-                clazz = Class.forName(type);
-                TICKET_TYPE_CACHE.put(type, clazz);
-            }
-            return deserializeTicket(ticketContent, clazz);
-        } catch (final Exception e) {
-            throw new RuntimeException(e.getMessage(), e);
+        final Class clazz;
+        if (TICKET_TYPE_CACHE.containsKey(type)) {
+            clazz = TICKET_TYPE_CACHE.get(type);
+        } else {
+            clazz = Class.forName(type);
+            TICKET_TYPE_CACHE.put(type, clazz);
         }
+        return deserializeTicket(ticketContent, clazz);
     }
 
     /**

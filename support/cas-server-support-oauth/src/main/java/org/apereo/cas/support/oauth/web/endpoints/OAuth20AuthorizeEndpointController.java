@@ -1,6 +1,10 @@
 package org.apereo.cas.support.oauth.web.endpoints;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apereo.cas.audit.AuditableContext;
+import org.apereo.cas.audit.AuditableExecution;
+import org.apereo.cas.audit.AuditableExecutionResult;
 import org.apereo.cas.authentication.Authentication;
 import org.apereo.cas.authentication.PrincipalException;
 import org.apereo.cas.authentication.principal.PrincipalFactory;
@@ -17,8 +21,7 @@ import org.apereo.cas.support.oauth.authenticator.OAuth20CasAuthenticationBuilde
 import org.apereo.cas.support.oauth.profile.OAuth20ProfileScopeToAttributesFilter;
 import org.apereo.cas.support.oauth.services.OAuthRegisteredService;
 import org.apereo.cas.support.oauth.util.OAuth20Utils;
-import org.apereo.cas.support.oauth.validator.OAuth20RequestValidator;
-import org.apereo.cas.support.oauth.validator.OAuth20Validator;
+import org.apereo.cas.support.oauth.validator.authorization.OAuth20AuthorizationRequestValidator;
 import org.apereo.cas.support.oauth.web.response.accesstoken.ext.AccessTokenRequestDataHolder;
 import org.apereo.cas.support.oauth.web.response.callback.OAuth20AuthorizationResponseBuilder;
 import org.apereo.cas.support.oauth.web.views.ConsentApprovalViewResolver;
@@ -33,8 +36,6 @@ import org.pac4j.core.context.J2EContext;
 import org.pac4j.core.profile.CommonProfile;
 import org.pac4j.core.profile.ProfileManager;
 import org.pac4j.core.profile.UserProfile;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.servlet.ModelAndView;
@@ -52,9 +53,8 @@ import java.util.Set;
  * @author Jerome Leleu
  * @since 3.5.0
  */
+@Slf4j
 public class OAuth20AuthorizeEndpointController extends BaseOAuth20Controller {
-    private static final Logger LOGGER = LoggerFactory.getLogger(OAuth20AuthorizeEndpointController.class);
-
     /**
      * The code factory instance.
      */
@@ -78,11 +78,15 @@ public class OAuth20AuthorizeEndpointController extends BaseOAuth20Controller {
     /**
      * Collection of request validators.
      */
-    protected final Set<OAuth20RequestValidator> oauthRequestValidators;
+    protected final Set<OAuth20AuthorizationRequestValidator> oauthRequestValidators;
+
+    /**
+     * Access strategy enforcer.
+     */
+    protected final AuditableExecution registeredServiceAccessStrategyEnforcer;
 
     public OAuth20AuthorizeEndpointController(final ServicesManager servicesManager,
                                               final TicketRegistry ticketRegistry,
-                                              final OAuth20Validator validator,
                                               final AccessTokenFactory accessTokenFactory,
                                               final PrincipalFactory principalFactory,
                                               final ServiceFactory<WebApplicationService> webApplicationServiceServiceFactory,
@@ -93,15 +97,18 @@ public class OAuth20AuthorizeEndpointController extends BaseOAuth20Controller {
                                               final CookieRetrievingCookieGenerator ticketGrantingTicketCookieGenerator,
                                               final OAuth20CasAuthenticationBuilder authenticationBuilder,
                                               final Set<OAuth20AuthorizationResponseBuilder> oauthAuthorizationResponseBuilders,
-                                              final Set<OAuth20RequestValidator> oauthRequestValidators) {
-        super(servicesManager, ticketRegistry, validator, accessTokenFactory, principalFactory,
+                                              final Set<OAuth20AuthorizationRequestValidator> oauthRequestValidators,
+                                              final AuditableExecution registeredServiceAccessStrategyEnforcer) {
+        super(servicesManager, ticketRegistry, accessTokenFactory, principalFactory,
             webApplicationServiceServiceFactory, scopeToAttributesFilter, casProperties,
             ticketGrantingTicketCookieGenerator);
+        
         this.oAuthCodeFactory = oAuthCodeFactory;
         this.consentApprovalViewResolver = consentApprovalViewResolver;
         this.authenticationBuilder = authenticationBuilder;
         this.oauthAuthorizationResponseBuilders = oauthAuthorizationResponseBuilders;
         this.oauthRequestValidators = oauthRequestValidators;
+        this.registeredServiceAccessStrategyEnforcer = registeredServiceAccessStrategyEnforcer;
     }
 
     /**
@@ -194,7 +201,13 @@ public class OAuth20AuthorizeEndpointController extends BaseOAuth20Controller {
         LOGGER.debug("Created OAuth authentication [{}] for service [{}]", service, authentication);
 
         try {
-            RegisteredServiceAccessStrategyUtils.ensurePrincipalAccessIsAllowedForService(service, registeredService, authentication);
+            final AuditableContext audit = AuditableContext.builder().service(service)
+                .authentication(authentication)
+                .registeredService(registeredService)
+                .retrievePrincipalAttributesFromReleasePolicy(Boolean.TRUE)
+                .build();
+            final AuditableExecutionResult accessResult = this.registeredServiceAccessStrategyEnforcer.execute(audit);
+            accessResult.throwExceptionIfNeeded();
         } catch (final UnauthorizedServiceException | PrincipalException e) {
             LOGGER.error(e.getMessage(), e);
             return OAuth20Utils.produceUnauthorizedErrorView();
@@ -249,7 +262,7 @@ public class OAuth20AuthorizeEndpointController extends BaseOAuth20Controller {
      * @return whether the authorize request is valid
      */
     private boolean verifyAuthorizeRequest(final J2EContext context) {
-        final OAuth20RequestValidator validator = this.oauthRequestValidators
+        final OAuth20AuthorizationRequestValidator validator = this.oauthRequestValidators
             .stream()
             .filter(b -> b.supports(context))
             .findFirst()

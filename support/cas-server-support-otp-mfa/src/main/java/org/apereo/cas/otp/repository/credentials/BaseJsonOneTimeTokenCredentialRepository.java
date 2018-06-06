@@ -1,10 +1,11 @@
 package org.apereo.cas.otp.repository.credentials;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apereo.cas.CipherExecutor;
+import org.apereo.cas.authentication.OneTimeTokenAccount;
 import org.apereo.cas.util.serialization.AbstractJacksonBackedStringSerializer;
 import org.apereo.cas.util.serialization.StringSerializer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 
 import java.io.IOException;
@@ -18,13 +19,14 @@ import java.util.TreeSet;
  * @author Misagh Moayyed
  * @since 5.1.0
  */
+@Slf4j
 public abstract class BaseJsonOneTimeTokenCredentialRepository extends BaseOneTimeTokenCredentialRepository {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BaseJsonOneTimeTokenCredentialRepository.class);
 
     private final Resource location;
     private final StringSerializer<TreeSet<OneTimeTokenAccount>> serializer = new OneTimeAccountSerializer();
 
-    public BaseJsonOneTimeTokenCredentialRepository(final Resource location) {
+    public BaseJsonOneTimeTokenCredentialRepository(final Resource location, final CipherExecutor<String, String> tokenCredentialCipher) {
+        super(tokenCredentialCipher);
         this.location = location;
     }
 
@@ -42,10 +44,13 @@ public abstract class BaseJsonOneTimeTokenCredentialRepository extends BaseOneTi
             }
 
             final Collection<OneTimeTokenAccount> c = this.serializer.from(this.location.getFile());
-            return c.stream()
+            final OneTimeTokenAccount account = c.stream()
                 .filter(a -> StringUtils.isNotBlank(a.getUsername()) && a.getUsername().equals(username))
                 .findAny()
                 .orElse(null);
+            if (account != null) {
+                return decode(account);
+            }
         } catch (final Exception e) {
             LOGGER.error(e.getMessage(), e);
         }
@@ -65,18 +70,21 @@ public abstract class BaseJsonOneTimeTokenCredentialRepository extends BaseOneTi
     }
 
     @Override
-    public void update(final OneTimeTokenAccount account) {
+    public OneTimeTokenAccount update(final OneTimeTokenAccount account) {
         try {
             final TreeSet<OneTimeTokenAccount> accounts = readAccountsFromJsonRepository();
-
+            
             LOGGER.debug("Found [{}] account(s) and added google authenticator account for [{}]", accounts.size(), account.getUsername());
-            accounts.add(account);
+            final OneTimeTokenAccount encoded = encode(account);
+            accounts.add(encoded);
 
             LOGGER.debug("Saving google authenticator accounts back to the JSON file at [{}]", this.location.getFile());
             this.serializer.to(this.location.getFile(), accounts);
+            return encoded;
         } catch (final Exception e) {
             LOGGER.error(e.getMessage(), e);
         }
+        return null;
     }
 
     private TreeSet<OneTimeTokenAccount> readAccountsFromJsonRepository() throws IOException {

@@ -1,5 +1,6 @@
 package org.apereo.cas.oidc.profile;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.authentication.principal.Principal;
 import org.apereo.cas.authentication.principal.PrincipalFactory;
 import org.apereo.cas.authentication.principal.Service;
@@ -12,7 +13,6 @@ import org.apereo.cas.oidc.claims.OidcCustomScopeAttributeReleasePolicy;
 import org.apereo.cas.oidc.claims.OidcEmailScopeAttributeReleasePolicy;
 import org.apereo.cas.oidc.claims.OidcPhoneScopeAttributeReleasePolicy;
 import org.apereo.cas.oidc.claims.OidcProfileScopeAttributeReleasePolicy;
-import org.apereo.cas.oidc.claims.mapping.OidcAttributeToScopeClaimMapper;
 import org.apereo.cas.services.ChainingAttributeReleasePolicy;
 import org.apereo.cas.services.DenyAllAttributeReleasePolicy;
 import org.apereo.cas.services.OidcRegisteredService;
@@ -27,13 +27,11 @@ import org.reflections.scanners.SubTypesScanner;
 import org.reflections.util.ClasspathHelper;
 import org.reflections.util.ConfigurationBuilder;
 import org.reflections.util.FilterBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -44,13 +42,11 @@ import java.util.Set;
  * @author Misagh Moayyed
  * @since 5.1.0
  */
+@Slf4j
 public class OidcProfileScopeToAttributesFilter extends DefaultOAuth20ProfileScopeToAttributesFilter {
-    private static final Logger LOGGER = LoggerFactory.getLogger(OidcProfileScopeToAttributesFilter.class);
-
     private final Map<String, BaseOidcScopeAttributeReleasePolicy> filters;
     private final Collection<BaseOidcScopeAttributeReleasePolicy> userScopes;
 
-    private final OidcAttributeToScopeClaimMapper attributeToScopeClaimMapper;
     private final PrincipalFactory principalFactory;
     private final ServicesManager servicesManager;
     private final CasConfigurationProperties casProperties;
@@ -58,9 +54,7 @@ public class OidcProfileScopeToAttributesFilter extends DefaultOAuth20ProfileSco
     public OidcProfileScopeToAttributesFilter(final PrincipalFactory principalFactory,
                                               final ServicesManager servicesManager,
                                               final Collection<BaseOidcScopeAttributeReleasePolicy> userScopes,
-                                              final OidcAttributeToScopeClaimMapper attributeToScopeClaimMapper,
                                               final CasConfigurationProperties casProperties) {
-        this.attributeToScopeClaimMapper = attributeToScopeClaimMapper;
         this.casProperties = casProperties;
         this.filters = new HashMap<>();
         this.principalFactory = principalFactory;
@@ -105,7 +99,7 @@ public class OidcProfileScopeToAttributesFilter extends DefaultOAuth20ProfileSco
         final Principal principal = super.filter(service, profile, registeredService, context, accessToken);
 
         if (registeredService instanceof OidcRegisteredService) {
-            final Collection<String> scopes = new HashSet<>(accessToken.getScopes());
+            final Collection<String> scopes = new LinkedHashSet<>(accessToken.getScopes());
             if (!scopes.contains(OidcConstants.StandardScopes.OPENID.getScope())) {
                 LOGGER.warn("Request does not indicate a scope [{}] that can identify an OpenID Connect request. "
                     + "This is a REQUIRED scope that MUST be present in the request. Given its absence, "
@@ -179,7 +173,7 @@ public class OidcProfileScopeToAttributesFilter extends DefaultOAuth20ProfileSco
                         break;
                     case OFFLINE_ACCESS:
                         LOGGER.debug("Given scope [{}], service [{}] is marked to generate refresh tokens", s, service.getId());
-                        oidc.setGenerateRefreshToken(Boolean.TRUE);
+                        oidc.setGenerateRefreshToken(true);
                         break;
                     case CUSTOM:
                         LOGGER.debug("Found custom scope [{}] for service [{}]", s, service.getId());
@@ -211,8 +205,8 @@ public class OidcProfileScopeToAttributesFilter extends DefaultOAuth20ProfileSco
         }
 
         if (policy.getPolicies().isEmpty()) {
-            LOGGER.warn("No attribute release policy could be determined based on given scopes. "
-                + "No claims/attributes will be released to [{}]", service.getId());
+            LOGGER.debug("No attribute release policy could be determined based on given scopes. "
+                + "No claims/attributes will be released to [{}]", service.getServiceId());
             oidc.setAttributeReleasePolicy(new DenyAllAttributeReleasePolicy());
         } else {
             oidc.setAttributeReleasePolicy(policy);

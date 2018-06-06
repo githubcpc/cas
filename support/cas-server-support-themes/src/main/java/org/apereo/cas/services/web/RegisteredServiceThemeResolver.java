@@ -1,11 +1,13 @@
 package org.apereo.cas.services.web;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apereo.cas.authentication.AuthenticationServiceSelectionPlan;
 import org.apereo.cas.authentication.principal.Service;
+import org.apereo.cas.configuration.CasConfigurationProperties;
 import org.apereo.cas.services.RegisteredService;
 import org.apereo.cas.services.ServicesManager;
 import org.apereo.cas.util.CollectionUtils;
@@ -14,8 +16,6 @@ import org.apereo.cas.util.HttpUtils;
 import org.apereo.cas.util.ResourceUtils;
 import org.apereo.cas.util.ScriptingUtils;
 import org.apereo.cas.web.support.WebUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -44,13 +44,13 @@ import java.util.stream.Collectors;
  * @author Scott Battaglia
  * @since 3.0.0
  */
+@Slf4j
 public class RegisteredServiceThemeResolver extends AbstractThemeResolver {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(RegisteredServiceThemeResolver.class);
-
     private final ServicesManager servicesManager;
 
     private final AuthenticationServiceSelectionPlan authenticationRequestServiceSelectionStrategies;
+
+    private final CasConfigurationProperties casProperties;
 
     private final ResourceLoader resourceLoader;
     /**
@@ -64,11 +64,12 @@ public class RegisteredServiceThemeResolver extends AbstractThemeResolver {
     public RegisteredServiceThemeResolver(final ServicesManager servicesManager,
                                           final Map<String, String> mobileOverrides,
                                           final AuthenticationServiceSelectionPlan serviceSelectionStrategies,
-                                          final ResourceLoader resourceLoader) {
-        super();
+                                          final ResourceLoader resourceLoader,
+                                          final CasConfigurationProperties casProperties) {
         this.servicesManager = servicesManager;
         this.authenticationRequestServiceSelectionStrategies = serviceSelectionStrategies;
         this.resourceLoader = resourceLoader;
+        this.casProperties = casProperties;
         this.overrides = mobileOverrides.entrySet()
             .stream()
             .collect(Collectors.toMap(entry -> Pattern.compile(entry.getKey()), Map.Entry::getValue));
@@ -77,13 +78,13 @@ public class RegisteredServiceThemeResolver extends AbstractThemeResolver {
     @Override
     public String resolveThemeName(final HttpServletRequest request) {
         if (this.servicesManager == null) {
-            return getDefaultThemeName();
+            return rememberThemeName(request);
         }
 
         final String userAgent = HttpRequestUtils.getHttpServletRequestUserAgent(request);
 
         if (StringUtils.isBlank(userAgent)) {
-            return getDefaultThemeName();
+            return rememberThemeName(request);
         }
 
         overrides.entrySet()
@@ -99,22 +100,22 @@ public class RegisteredServiceThemeResolver extends AbstractThemeResolver {
         final Service serviceContext = WebUtils.getService(context);
         final Service service = this.authenticationRequestServiceSelectionStrategies.resolveService(serviceContext);
         if (service == null) {
-            LOGGER.debug("No service is found in the request context. Falling back to the default theme [{}]", getDefaultThemeName());
-            return getDefaultThemeName();
+            LOGGER.trace("No service is found in the request context. Falling back to the default theme [{}]", getDefaultThemeName());
+            return rememberThemeName(request);
         }
 
         final RegisteredService rService = this.servicesManager.findServiceBy(service);
         if (rService == null || !rService.getAccessStrategy().isServiceAccessAllowed()) {
             LOGGER.warn("No registered service is found to match [{}] or access is denied. Using default theme [{}]", service, getDefaultThemeName());
-            return getDefaultThemeName();
+            return rememberThemeName(request);
         }
         if (StringUtils.isBlank(rService.getTheme())) {
-            LOGGER.debug("No theme name is specified for service [{}]. Using default theme [{}]", rService, getDefaultThemeName());
-            return getDefaultThemeName();
+            LOGGER.trace("No theme name is specified for service [{}]. Using default theme [{}]", rService, getDefaultThemeName());
+            return rememberThemeName(request);
         }
 
-        return determineThemeNameToChoose(request, service, rService);
-
+        final String themeName = determineThemeNameToChoose(request, service, rService);
+        return rememberThemeName(request, themeName);
     }
 
     /**
@@ -151,7 +152,7 @@ public class RegisteredServiceThemeResolver extends AbstractThemeResolver {
             final CasThemeResourceBundleMessageSource messageSource = new CasThemeResourceBundleMessageSource();
             messageSource.setBasename(rService.getTheme());
             if (messageSource.doGetBundle(rService.getTheme(), request.getLocale()) != null) {
-                LOGGER.debug("Found custom theme [{}] for service [{}]", rService.getTheme(), rService);
+                LOGGER.trace("Found custom theme [{}] for service [{}]", rService.getTheme(), rService);
                 return rService.getTheme();
             }
             LOGGER.warn("Custom theme [{}] for service [{}] cannot be located. Falling back to default theme...", rService.getTheme(), rService);
@@ -163,6 +164,15 @@ public class RegisteredServiceThemeResolver extends AbstractThemeResolver {
 
     @Override
     public void setThemeName(final HttpServletRequest request, final HttpServletResponse response, final String themeName) {
+    }
+
+    private String rememberThemeName(final HttpServletRequest request) {
+        return rememberThemeName(request, getDefaultThemeName());
+    }
+
+    private String rememberThemeName(final HttpServletRequest request, final String themeName) {
+        request.setAttribute(casProperties.getTheme().getParamName(), themeName);
+        return themeName;
     }
 
     /**

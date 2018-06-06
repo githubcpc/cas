@@ -4,9 +4,13 @@ import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
-import org.springframework.util.Assert;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import org.apereo.cas.authentication.Authentication;
 
 import javax.persistence.Column;
 import javax.persistence.Id;
@@ -34,6 +38,10 @@ import java.time.ZonedDateTime;
 @MappedSuperclass
 @JsonIdentityInfo(generator = ObjectIdGenerators.IntSequenceGenerator.class)
 @JsonIgnoreProperties(ignoreUnknown = true)
+@Slf4j
+@NoArgsConstructor
+@EqualsAndHashCode(of = {"id"})
+@Setter
 public abstract class AbstractTicket implements Ticket, TicketState {
 
     private static final long serialVersionUID = -8506442397878267555L;
@@ -43,6 +51,7 @@ public abstract class AbstractTicket implements Ticket, TicketState {
      **/
     @Lob
     @Column(name = "EXPIRATION_POLICY", length = Integer.MAX_VALUE, nullable = false)
+    @Getter
     private ExpirationPolicy expirationPolicy;
 
     /**
@@ -50,51 +59,45 @@ public abstract class AbstractTicket implements Ticket, TicketState {
      */
     @Id
     @Column(name = "ID", nullable = false)
+    @Getter
     private String id;
 
     /**
      * The last time this ticket was used.
      */
-    @Column(name = "LAST_TIME_USED")
+    @Column(name = "LAST_TIME_USED", length = Integer.MAX_VALUE)
+    @Getter
     private ZonedDateTime lastTimeUsed;
 
     /**
      * The previous last time this ticket was used.
      */
-    @Column(name = "PREVIOUS_LAST_TIME_USED")
-    private ZonedDateTime previousLastTimeUsed;
+    @Column(name = "PREVIOUS_LAST_TIME_USED", length = Integer.MAX_VALUE)
+    @Getter
+    private ZonedDateTime previousTimeUsed;
 
     /**
      * The time the ticket was created.
      */
-    @Column(name = "CREATION_TIME")
+    @Column(name = "CREATION_TIME", length = Integer.MAX_VALUE)
+    @Getter
     private ZonedDateTime creationTime;
 
     /**
      * The number of times this was used.
      */
     @Column(name = "NUMBER_OF_TIMES_USED")
+    @Getter
     private int countOfUses;
 
     /**
-     * Instantiates a new abstract ticket.
+     * Flag to enforce manual expiration.
      */
-    protected AbstractTicket() {
-        // nothing to do
-    }
+    @Column(name = "EXPIRED", nullable = false)
+    private Boolean expired = Boolean.FALSE;
 
-    /**
-     * Constructs a new Ticket with a unique id, a possible parent Ticket (can
-     * be null) and a specified Expiration Policy.
-     *
-     * @param id               the unique identifier for the ticket
-     * @param expirationPolicy the expiration policy for the ticket.
-     * @throws IllegalArgumentException if the id or expiration policy is null.
-     */
-    public AbstractTicket(final String id, final ExpirationPolicy expirationPolicy) {
-        Assert.notNull(expirationPolicy, "expirationPolicy cannot be null");
-        Assert.notNull(id, "id cannot be null");
 
+    public AbstractTicket(@NonNull final String id, @NonNull final ExpirationPolicy expirationPolicy) {
         this.id = id;
         this.creationTime = ZonedDateTime.now(ZoneOffset.UTC);
         this.lastTimeUsed = ZonedDateTime.now(ZoneOffset.UTC);
@@ -102,89 +105,49 @@ public abstract class AbstractTicket implements Ticket, TicketState {
     }
 
     @Override
-    public String getId() {
-        return this.id;
-    }
-
-    @Override
     public void update() {
-        this.previousLastTimeUsed = this.lastTimeUsed;
+        this.previousTimeUsed = this.lastTimeUsed;
         this.lastTimeUsed = ZonedDateTime.now(ZoneOffset.UTC);
         this.countOfUses++;
-
-        if (getGrantingTicket() != null && !getGrantingTicket().isExpired()) {
-            final TicketState state = TicketState.class.cast(getGrantingTicket());
+        if (getTicketGrantingTicket() != null && !getTicketGrantingTicket().isExpired()) {
+            final TicketState state = TicketState.class.cast(getTicketGrantingTicket());
             state.update();
         }
     }
 
     @Override
-    public int getCountOfUses() {
-        return this.countOfUses;
-    }
-
-    @Override
-    public ZonedDateTime getCreationTime() {
-        return this.creationTime;
-    }
-
-    @Override
-    public ZonedDateTime getLastTimeUsed() {
-        return this.lastTimeUsed;
-    }
-
-    @Override
-    public ZonedDateTime getPreviousTimeUsed() {
-        return this.previousLastTimeUsed;
-    }
-
-    @Override
     public boolean isExpired() {
-        final TicketGrantingTicket tgt = getGrantingTicket();
-        return this.expirationPolicy.isExpired(this) || (tgt != null && tgt.isExpired()) || isExpiredInternal();
+        return this.expirationPolicy.isExpired(this) || isExpiredInternal();
     }
 
     @JsonIgnore
     protected boolean isExpiredInternal() {
-        return false;
-    }
-
-    @Override
-    public int hashCode() {
-        return new HashCodeBuilder(13, 133).append(this.getId()).toHashCode();
-    }
-
-    @Override
-    public boolean equals(final Object object) {
-        if (object == null) {
-            return false;
-        }
-        if (object == this) {
-            return true;
-        }
-        if (!(object instanceof Ticket)) {
-            return false;
-        }
-
-        final Ticket ticket = (Ticket) object;
-
-        return new EqualsBuilder()
-            .append(ticket.getId(), this.getId())
-            .isEquals();
-    }
-
-    @Override
-    public String toString() {
-        return this.getId();
-    }
-
-    @Override
-    public ExpirationPolicy getExpirationPolicy() {
-        return this.expirationPolicy;
+        return this.expired;
     }
 
     @Override
     public int compareTo(final Ticket o) {
         return getId().compareTo(o.getId());
     }
+
+    @Override
+    public String toString() {
+        return getId();
+    }
+
+    @Override
+    public Authentication getAuthentication() {
+        return getTicketGrantingTicket().getAuthentication();
+    }
+
+    @Override
+    public TicketGrantingTicket getTicketGrantingTicket() {
+        return null;
+    }
+
+    @Override
+    public void markTicketExpired() {
+        this.expired = Boolean.TRUE;
+    }
+
 }

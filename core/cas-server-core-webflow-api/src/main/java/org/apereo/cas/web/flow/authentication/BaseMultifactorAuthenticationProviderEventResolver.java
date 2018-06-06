@@ -1,5 +1,6 @@
 package org.apereo.cas.web.flow.authentication;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.CentralAuthenticationService;
 import org.apereo.cas.authentication.AuthenticationServiceSelectionPlan;
 import org.apereo.cas.authentication.AuthenticationSystemSupport;
@@ -14,14 +15,13 @@ import org.apereo.cas.services.VariegatedMultifactorAuthenticationProvider;
 import org.apereo.cas.ticket.registry.TicketRegistrySupport;
 import org.apereo.cas.util.CollectionUtils;
 import org.apereo.cas.web.flow.resolver.impl.AbstractCasWebflowEventResolver;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.web.util.CookieGenerator;
 import org.springframework.webflow.execution.RequestContext;
 
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -30,9 +30,10 @@ import java.util.Optional;
  * @author Misagh Moayyed
  * @since 5.1.0
  */
+@Slf4j
 public abstract class BaseMultifactorAuthenticationProviderEventResolver extends AbstractCasWebflowEventResolver
         implements MultifactorAuthenticationProviderResolver {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BaseMultifactorAuthenticationProviderEventResolver.class);
+
     
     public BaseMultifactorAuthenticationProviderEventResolver(final AuthenticationSystemSupport authenticationSystemSupport,
                                                               final CentralAuthenticationService centralAuthenticationService,
@@ -51,7 +52,7 @@ public abstract class BaseMultifactorAuthenticationProviderEventResolver extends
                                                                        final Collection<String> requestMfaMethod) {
         final Optional<MultifactorAuthenticationProvider> providerFound = providers.values()
                 .stream()           
-                .filter(p -> requestMfaMethod.stream().anyMatch(p::matches))
+                .filter(p -> requestMfaMethod.stream().filter(Objects::nonNull).anyMatch(p::matches))
                 .findFirst();
         if (providerFound.isPresent()) {
             final MultifactorAuthenticationProvider provider = providerFound.get();
